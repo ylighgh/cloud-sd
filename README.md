@@ -331,4 +331,4 @@ Issues and pull requests are welcome. Keep provider adapters behind the `Resourc
 
 ## License
 
-No license has been declared yet. Add a `LICENSE` file before publishing this project as open source.
+cloud-sd is licensed under the [Apache License 2.0](LICENSE).

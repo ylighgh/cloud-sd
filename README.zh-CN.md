@@ -331,4 +331,4 @@ make run
 
 ## License
 
-当前还没有声明 license。正式作为开源项目发布前，建议增加 `LICENSE` 文件。
+cloud-sd 使用 [Apache License 2.0](LICENSE) 开源许可。
