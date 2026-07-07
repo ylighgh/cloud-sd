@@ -1,0 +1,45 @@
+server:
+  listen: ":8080"
+
+collector:
+  scopes:
+    - id1
+    - game-id1
+  engines:
+    redis: true
+    mysql: true
+    postgres: true
+    mongo: true
+    node: true
+  refresh_interval: 5m
+  refresh_timeout: 1m
+  request_timeout: 20s
+
+routing:
+  scope_tag: cloud_sd_scope
+  disable_tag: cloud_sd_disable
+
+aliyun:
+  enabled: true
+  accounts:
+    - name: prod
+      regions:
+        - cn-hangzhou
+        - ap-southeast-1
+      access_key_id_env: ALIYUN_PROD_ACCESS_KEY_ID
+      access_key_secret_env: ALIYUN_PROD_ACCESS_KEY_SECRET
+
+    - name: game
+      regions:
+        - cn-shanghai
+      access_key_id_env: ALIYUN_GAME_ACCESS_KEY_ID
+      access_key_secret_env: ALIYUN_GAME_ACCESS_KEY_SECRET
+
+# aws:
+#   enabled: true
+#   accounts:
+#     - name: aws-prod
+#       regions:
+#         - ap-southeast-1
+#       access_key_id_env: AWS_ACCESS_KEY_ID
+#       secret_access_key_env: AWS_SECRET_ACCESS_KEY

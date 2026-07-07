@@ -1,0 +1,26 @@
+# Build outputs
+/bin/
+/dist/
+/cloud-sd
+
+# Go test and coverage artifacts
+*.test
+*.out
+coverage.*
+
+# Local runtime/config files
+.env
+.env.*
+!.env.example
+cloud-sd.yaml
+cloud-sd.local.yaml
+examples/config-dev.yaml
+examples/config-*.local.yaml
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+
+# Local code index/cache
+.codegraph/
