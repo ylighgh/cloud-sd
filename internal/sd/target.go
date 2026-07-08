@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
 )
 
 var labelNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)

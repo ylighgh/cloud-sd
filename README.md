@@ -1,10 +1,10 @@
-# cloud-sd
+# prometheus-cloud-sd
 
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](go.mod)
 [![Prometheus](https://img.shields.io/badge/Prometheus-HTTP%20SD-E6522C?logo=prometheus&logoColor=white)](docs/prometheus.md)
 [![Status](https://img.shields.io/badge/status-v0.1.0-blue)](#status)
 
-cloud-sd is a multi-cloud resource discovery service for Prometheus HTTP Service Discovery. It discovers cloud databases, middleware, and compute resources from Alibaba Cloud and AWS, converts them into Prometheus `http_sd_configs` target groups, and lets Prometheus scrape them through exporters.
+prometheus-cloud-sd, also known as cloud-sd, is a multi-cloud resource discovery service for Prometheus HTTP Service Discovery. It discovers cloud databases, middleware, and compute resources from Alibaba Cloud and AWS, converts them into Prometheus `http_sd_configs` target groups, and lets Prometheus scrape them through exporters.
 
 [中文文档](README.zh-CN.md) | [Prometheus integration](docs/prometheus.md) | [Kubernetes manifests](deploy/) | [Example config](examples/config.yaml)
 
@@ -37,7 +37,7 @@ Still intentionally out of scope for v0.1.0:
 The default manifest uses:
 
 ```text
-ghcr.io/ylighgh/cloud-sd:v0.1.0
+ghcr.io/ylighgh/prometheus-cloud-sd:v0.1.0
 ```
 
 The image is built by [.github/workflows/docker.yml](.github/workflows/docker.yml). It runs on `v*` tags and can also be triggered manually.

@@ -1,10 +1,10 @@
-# cloud-sd
+# prometheus-cloud-sd
 
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](go.mod)
 [![Prometheus](https://img.shields.io/badge/Prometheus-HTTP%20SD-E6522C?logo=prometheus&logoColor=white)](docs/prometheus.zh-CN.md)
 [![Status](https://img.shields.io/badge/status-v0.1.0-blue)](#项目状态)
 
-cloud-sd 是一个面向 Prometheus HTTP Service Discovery 的多云资源发现服务。它从 Alibaba Cloud 和 AWS 发现云数据库、中间件和计算资源，转换为 Prometheus `http_sd_configs` 兼容的 target groups，让 Prometheus 可以配合 exporter 采集。
+prometheus-cloud-sd，也就是 cloud-sd，是一个面向 Prometheus HTTP Service Discovery 的多云资源发现服务。它从 Alibaba Cloud 和 AWS 发现云数据库、中间件和计算资源，转换为 Prometheus `http_sd_configs` 兼容的 target groups，让 Prometheus 可以配合 exporter 采集。
 
 [English](README.md) | [Prometheus 集成](docs/prometheus.zh-CN.md) | [Kubernetes 清单](deploy/) | [示例配置](examples/config.yaml)
 
@@ -37,7 +37,7 @@ cloud-sd 是一个面向 Prometheus HTTP Service Discovery 的多云资源发现
 默认清单使用：
 
 ```text
-ghcr.io/ylighgh/cloud-sd:v0.1.0
+ghcr.io/ylighgh/prometheus-cloud-sd:v0.1.0
 ```
 
 镜像由 [.github/workflows/docker.yml](.github/workflows/docker.yml) 构建。推送 `v*` tag 会自动触发，也可以手动运行 workflow。

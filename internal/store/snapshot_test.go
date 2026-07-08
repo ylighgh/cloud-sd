@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
-	sourcepkg "github.com/ylighgh/cloud-sd/internal/source"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
+	sourcepkg "github.com/ylighgh/prometheus-cloud-sd/internal/source"
 )
 
 func TestSnapshotStoreRefreshKeepsPreviousSnapshotOnFailure(t *testing.T) {

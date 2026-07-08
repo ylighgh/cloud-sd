@@ -3,7 +3,7 @@ package routing
 import (
 	"strings"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
 )
 
 type Rules struct {

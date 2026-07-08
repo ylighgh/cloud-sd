@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
 )
 
 type Key struct {

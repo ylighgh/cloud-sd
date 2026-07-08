@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ylighgh/cloud-sd/internal/config"
-	"github.com/ylighgh/cloud-sd/internal/identity"
-	"github.com/ylighgh/cloud-sd/internal/source/aliyun"
-	awssource "github.com/ylighgh/cloud-sd/internal/source/aws"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/config"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/identity"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/source/aliyun"
+	awssource "github.com/ylighgh/prometheus-cloud-sd/internal/source/aws"
 )
 
 func TestBuildResourceSourcesUsesEnabledProviderFactories(t *testing.T) {

@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
-	"github.com/ylighgh/cloud-sd/internal/routing"
-	"github.com/ylighgh/cloud-sd/internal/sd"
-	"github.com/ylighgh/cloud-sd/internal/store"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/routing"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/sd"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/store"
 )
 
 func TestSDHandlersReturnFilteredTargetGroupsByEngine(t *testing.T) {

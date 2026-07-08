@@ -1,4 +1,4 @@
-module github.com/ylighgh/cloud-sd
+module github.com/ylighgh/prometheus-cloud-sd
 
 go 1.25.0
 

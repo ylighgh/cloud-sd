@@ -118,7 +118,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: cloud-sd
-          image: ghcr.io/ylighgh/cloud-sd:v0.1.0
+          image: ghcr.io/ylighgh/prometheus-cloud-sd:v0.1.0
           imagePullPolicy: IfNotPresent
           args:
             - -config

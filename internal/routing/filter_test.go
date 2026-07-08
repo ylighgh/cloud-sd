@@ -3,7 +3,7 @@ package routing
 import (
 	"testing"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
 )
 
 func TestFilterKeepsRedisResourcesWithMatchingScope(t *testing.T) {

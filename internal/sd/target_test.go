@@ -3,7 +3,7 @@ package sd
 import (
 	"testing"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
 )
 
 func TestBuildTargetGroupsProducesPrometheusHTTPSDFormat(t *testing.T) {

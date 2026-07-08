@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
-	"github.com/ylighgh/cloud-sd/internal/source"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/source"
 )
 
 type Status struct {

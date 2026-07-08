@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
 )
 
 type ResourceSource interface {

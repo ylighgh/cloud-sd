@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
 )
 
 func TestMultiSourceReportsMixedProvider(t *testing.T) {

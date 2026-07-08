@@ -1,6 +1,6 @@
 package source
 
-import "github.com/ylighgh/cloud-sd/internal/core"
+import "github.com/ylighgh/prometheus-cloud-sd/internal/core"
 
 type ProviderFactory interface {
 	Provider() core.Provider

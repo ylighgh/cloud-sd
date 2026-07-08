@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
-	"github.com/ylighgh/cloud-sd/internal/source/aliyun"
-	awssource "github.com/ylighgh/cloud-sd/internal/source/aws"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/source/aliyun"
+	awssource "github.com/ylighgh/prometheus-cloud-sd/internal/source/aws"
 	"gopkg.in/yaml.v3"
 )
 

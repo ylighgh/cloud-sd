@@ -3,7 +3,7 @@ package identity
 import (
 	"testing"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
 )
 
 func TestMemoryCacheStoresIdentityByProviderAccountNameAndAccessKey(t *testing.T) {

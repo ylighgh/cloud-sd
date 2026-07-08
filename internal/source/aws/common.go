@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
-	"github.com/ylighgh/cloud-sd/internal/identity"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/identity"
 )
 
 type ClientOptions struct {

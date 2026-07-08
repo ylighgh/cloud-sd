@@ -10,15 +10,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ylighgh/cloud-sd/internal/config"
-	"github.com/ylighgh/cloud-sd/internal/identity"
-	"github.com/ylighgh/cloud-sd/internal/routing"
-	"github.com/ylighgh/cloud-sd/internal/sd"
-	"github.com/ylighgh/cloud-sd/internal/server"
-	"github.com/ylighgh/cloud-sd/internal/source"
-	"github.com/ylighgh/cloud-sd/internal/source/aliyun"
-	awssource "github.com/ylighgh/cloud-sd/internal/source/aws"
-	"github.com/ylighgh/cloud-sd/internal/store"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/config"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/identity"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/routing"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/sd"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/server"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/source"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/source/aliyun"
+	awssource "github.com/ylighgh/prometheus-cloud-sd/internal/source/aws"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/store"
 )
 
 func main() {

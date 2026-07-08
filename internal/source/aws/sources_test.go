@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ylighgh/cloud-sd/internal/core"
+	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
 )
 
 func TestRedisSourceConvertsElastiCacheResources(t *testing.T) {

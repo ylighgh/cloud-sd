@@ -40,6 +40,6 @@ Before production use:
 
 - replace every `CHANGE_ME` placeholder in the Secret
 - review the ConfigMap accounts, regions, scopes, and enabled engines
-- replace the image if you publish it outside `ghcr.io/ylighgh/cloud-sd`
+- replace the image if you publish it outside `ghcr.io/ylighgh/prometheus-cloud-sd`
 - prefer ExternalSecret, SealedSecret, or your cloud secret manager for credentials
 - restrict network access so only Prometheus and trusted operators can call cloud-sd
