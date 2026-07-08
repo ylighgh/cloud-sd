@@ -2,83 +2,125 @@
 
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](go.mod)
 [![Prometheus](https://img.shields.io/badge/Prometheus-HTTP%20SD-E6522C?logo=prometheus&logoColor=white)](docs/prometheus.md)
-[![Status](https://img.shields.io/badge/status-v0.1.0-blue)](#project-status)
+[![Status](https://img.shields.io/badge/status-v0.1.0-blue)](#status)
 
-cloud-sd is a multi-cloud resource discovery service for Prometheus HTTP Service Discovery. It discovers managed databases, middleware, and compute resources from Alibaba Cloud and AWS, normalizes them into Prometheus `http_sd_configs` target groups, and lets Prometheus scrape them through exporters.
+cloud-sd is a multi-cloud resource discovery service for Prometheus HTTP Service Discovery. It discovers cloud databases, middleware, and compute resources from Alibaba Cloud and AWS, converts them into Prometheus `http_sd_configs` target groups, and lets Prometheus scrape them through exporters.
 
-[中文文档](README.zh-CN.md) | [Prometheus integration](docs/prometheus.md) | [Example config](examples/config.yaml)
+[中文文档](README.zh-CN.md) | [Prometheus integration](docs/prometheus.md) | [Kubernetes manifests](deploy/) | [Example config](examples/config.yaml)
 
-## Why cloud-sd?
+## Status
 
-Prometheus can discover many platforms natively, but managed cloud databases and middleware often need provider-specific APIs, tags, account metadata, and exporter-aware target routing. cloud-sd provides that normalization layer outside Prometheus.
+`v0.1.0` is the first usable release.
 
-Use cloud-sd when you want to:
+Included:
 
-- discover Redis, PostgreSQL, MySQL, MongoDB, and node targets from cloud APIs
-- keep Prometheus scrape jobs stable while cloud resources change
-- route cloud resources to multi-target exporters such as `redis_exporter`, `postgres_exporter`, `mysqld_exporter`, `mongodb_exporter`, and `node_exporter`
-- filter discovered targets by tags, scopes, accounts, regions, and engines
-- avoid maintaining static target files or periodic CMDB snapshots
-
-## Features
-
-- Prometheus HTTP SD endpoints for `/sd/redis`, `/sd/postgres`, `/sd/mysql`, `/sd/mongo`, and `/sd/node`
-- Alibaba Cloud adapters for Redis/Tair, RDS MySQL, RDS PostgreSQL, MongoDB, and ECS
-- AWS adapters for ElastiCache Redis/Valkey, RDS/Aurora MySQL, RDS/Aurora PostgreSQL, DocumentDB, and EC2
+- Alibaba Cloud: Redis/Tair, RDS MySQL, RDS PostgreSQL, MongoDB, ECS
+- AWS: ElastiCache Redis/Valkey, RDS/Aurora MySQL, RDS/Aurora PostgreSQL, DocumentDB, EC2
+- Prometheus HTTP SD endpoints for Redis, MySQL, PostgreSQL, MongoDB, and Node Exporter targets
 - tag/scope filtering with `cloud_sd_scope` and `cloud_sd_disable`
-- dashboard-friendly labels: `vendor`, `account`, `account_id`, `region`, `group`, `name`, `iid`, `cservice`, `resource_type`, `engine`
-- background refresh with in-memory snapshots, readiness checks, and source-level last-known-good behavior
-- adapter/factory interfaces for future providers such as Huawei Cloud or CMDB-backed sources
+- Kubernetes manifests for cloud-sd and exporters
+- GHCR image publishing workflow
 
-## Project Status
+Still intentionally out of scope for v0.1.0:
 
-cloud-sd `v0.1.0` is the first usable release. It includes Alibaba Cloud and AWS discovery adapters, Prometheus HTTP SD endpoints, exporter deployment examples, and multi-target scrape configuration.
+- UI
+- database storage
+- HTTP auth
+- persistent cache
 
-This release intentionally keeps the runtime small:
+## Quick Start
 
-- no UI
-- no database dependency
-- no file source
-- no auth yet
-- no persistent cache yet
+### Kubernetes
 
-The current focus is a clean adapter model, stable HTTP SD output, and practical Prometheus exporter integration.
+1. Publish or select an image.
+
+The default manifest uses:
+
+```text
+ghcr.io/ylighgh/cloud-sd:v0.1.0
+```
+
+The image is built by [.github/workflows/docker.yml](.github/workflows/docker.yml). It runs on `v*` tags and can also be triggered manually.
+
+2. Update credentials and config.
+
+Edit [deploy/cloud-sd/cloud-sd.yaml](deploy/cloud-sd/cloud-sd.yaml):
+
+- replace every `CHANGE_ME`
+- review enabled providers, accounts, regions, scopes, and engines
+- update the image if you publish it somewhere else
+
+3. Deploy cloud-sd.
+
+```bash
+kubectl apply -f deploy/cloud-sd/cloud-sd.yaml
+kubectl -n monitoring rollout status deploy/cloud-sd
+```
+
+4. Deploy exporters if needed.
+
+```bash
+kubectl apply -f deploy/exporters/
+```
+
+Detailed deployment docs:
+
+- [cloud-sd Kubernetes deployment](deploy/cloud-sd/)
+- [exporter Kubernetes manifests](deploy/exporters/)
+- [Prometheus scrape configs](docs/prometheus/exporters/)
+
+### Local Run
+
+```bash
+export ALIYUN_PROD_ACCESS_KEY_ID="your-access-key-id"
+export ALIYUN_PROD_ACCESS_KEY_SECRET="your-access-key-secret"
+export AWS_ACCESS_KEY_ID="your-access-key-id"
+export AWS_SECRET_ACCESS_KEY="your-secret-access-key"
+
+go run ./cmd/cloud-sd -config examples/config.yaml
+```
+
+Check the service:
+
+```bash
+curl http://localhost:8080/healthz
+curl http://localhost:8080/readyz
+curl http://localhost:8080/sd/redis
+```
 
 ## Supported Resources
 
 | Endpoint | Engine | Alibaba Cloud | AWS |
 |---|---|---|---|
 | `/sd/redis` | `redis` | Redis / Tair | ElastiCache Redis / Valkey |
-| `/sd/postgres` | `postgres` | RDS PostgreSQL | RDS PostgreSQL / Aurora PostgreSQL |
 | `/sd/mysql` | `mysql` | RDS MySQL | RDS MySQL / Aurora MySQL |
+| `/sd/postgres` | `postgres` | RDS PostgreSQL | RDS PostgreSQL / Aurora PostgreSQL |
 | `/sd/mongo` | `mongo` | MongoDB | DocumentDB |
 | `/sd/node` | `node` | ECS | EC2 |
 
-`/sd/node` does not filter by instance status. Stopped or accidentally powered-off instances remain visible to Prometheus as unreachable targets. This is useful when power state changes should become monitoring signals.
+`/sd/node` does not filter by instance status. Stopped instances remain visible to Prometheus as unreachable targets so power state changes can become monitoring signals.
 
 ## Architecture
 
 ![cloud-sd architecture](docs/assets/architecture.png)
 
 ```text
-Cloud accounts and regions
-        |
-        v
+Cloud APIs
+   |
+   v
 ResourceSource adapters
-        |
-        v
+   |
+   v
 MultiSource aggregator
-        |
-        v
+   |
+   v
 In-memory snapshot store
-        |
-        v
+   |
+   v
 Prometheus HTTP SD endpoints
 ```
 
-Provider adapters query cloud APIs, normalize resources into a common model, and pass them through routing rules. Prometheus only reads HTTP SD snapshots; it never calls cloud APIs directly.
-
-Every adapter implements:
+Every provider adapter implements:
 
 ```go
 type ResourceSource interface {
@@ -88,45 +130,20 @@ type ResourceSource interface {
 }
 ```
 
-Provider factories build the enabled sources from configuration. The same path can later host Huawei Cloud, CMDB, MCP, or other inventory adapters without changing the Prometheus-facing API.
-
-## Quick Start
-
-1. Configure credentials. Environment variables are recommended:
-
-```bash
-export ALIYUN_PROD_ACCESS_KEY_ID="your-access-key-id"
-export ALIYUN_PROD_ACCESS_KEY_SECRET="your-access-key-secret"
-export AWS_ACCESS_KEY_ID="your-access-key-id"
-export AWS_SECRET_ACCESS_KEY="your-secret-access-key"
-```
-
-2. Start cloud-sd:
-
-```bash
-go run ./cmd/cloud-sd -config examples/config.yaml
-```
-
-3. Check the service:
-
-```bash
-curl http://localhost:8080/healthz
-curl http://localhost:8080/readyz
-curl http://localhost:8080/sd/redis
-```
+Provider factories build enabled sources from YAML config. Future Huawei Cloud, CMDB, MCP, or other inventory adapters can use the same interface without changing the Prometheus-facing API.
 
 ## Configuration
 
-cloud-sd uses YAML:
+cloud-sd uses YAML. Start from [examples/config.yaml](examples/config.yaml) or the ConfigMap in [deploy/cloud-sd/cloud-sd.yaml](deploy/cloud-sd/cloud-sd.yaml).
+
+Minimal shape:
 
 ```yaml
 server:
   listen: ":8080"
 
 collector:
-  scopes:
-    - id1
-    - game-id1
+  scopes: []
   engines:
     redis: true
     mysql: true
@@ -145,70 +162,31 @@ aliyun:
   enabled: true
   accounts:
     - name: prod
-      regions:
-        - cn-hangzhou
-        - ap-southeast-1
+      regions: [ap-southeast-1]
       access_key_id_env: ALIYUN_PROD_ACCESS_KEY_ID
       access_key_secret_env: ALIYUN_PROD_ACCESS_KEY_SECRET
-
-aws:
-  enabled: true
-  accounts:
-    - name: aws-prod
-      regions:
-        - ap-southeast-1
-      access_key_id_env: AWS_ACCESS_KEY_ID
-      secret_access_key_env: AWS_SECRET_ACCESS_KEY
 ```
 
 Notes:
 
-- `collector.scopes` can be omitted or left empty to discover all non-disabled resources.
-- `collector.engines` defaults to Redis only when omitted. If present, at least one engine must be enabled.
-- `collector.refresh_interval` controls how often cloud-sd refreshes resources.
-- `collector.refresh_timeout` is the deadline for one full refresh cycle.
-- `collector.request_timeout` is passed to cloud SDK clients as the per-request timeout.
-- `account_id` is resolved automatically through cloud STS APIs and cached in memory.
-- Direct AK/SK values are supported for local testing, but environment variables or Kubernetes Secrets are recommended for production.
-- AWS accepts both `access_key_secret` and `secret_access_key`; `session_token` is only needed for temporary STS credentials.
-
-## Routing Rules
-
-Resources are returned only when:
-
-- the resource engine matches the requested `/sd/{engine}` endpoint
-- `collector.scopes` is empty, or the configured scope tag value is listed in `collector.scopes`
-- the configured disable tag is not `true`
-
-Default tags:
-
-```text
-cloud_sd_scope=id1
-cloud_sd_disable=false
-```
-
-Set this tag to disable discovery for a resource:
-
-```text
-cloud_sd_disable=true
-```
-
-Tag read permissions are required for scope and disable filtering to work correctly.
+- Empty `collector.scopes` means discover all non-disabled resources.
+- `account_id` is resolved through cloud STS APIs and cached in memory.
+- Use environment variables or Kubernetes Secrets for AK/SK in production.
 
 ## HTTP API
 
 | Endpoint | Description |
 |---|---|
 | `GET /sd/redis` | Redis-compatible targets |
-| `GET /sd/postgres` | PostgreSQL-compatible targets |
 | `GET /sd/mysql` | MySQL-compatible targets |
+| `GET /sd/postgres` | PostgreSQL-compatible targets |
 | `GET /sd/mongo` | MongoDB-compatible targets |
-| `GET /sd/node` | Node exporter targets |
+| `GET /sd/node` | Node Exporter targets |
 | `GET /healthz` | Liveness check |
 | `GET /readyz` | Readiness and refresh status |
-| `GET /metrics` | Reserved Prometheus metrics endpoint |
+| `GET /metrics` | Reserved metrics endpoint |
 
-Example HTTP SD response:
+Example target group:
 
 ```json
 [
@@ -230,97 +208,47 @@ Example HTTP SD response:
 ]
 ```
 
-## Prometheus Integration
+## Prometheus
 
-For multi-target exporters, keep the discovered cloud resource address in `__param_target`, rewrite `__address__` to the exporter service, and copy `__param_target` to `instance`.
+Prometheus reads cloud-sd through `http_sd_configs`, then relabels discovered resource addresses into exporter probe targets.
 
-```yaml
-scrape_configs:
-  - job_name: cloud-redis
-    metrics_path: /scrape
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/redis
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: __param_target
-      - source_labels: [__address__]
-        target_label: instance
-      - target_label: __address__
-        replacement: redis-exporter.monitoring.svc:9121
+Use cloud-neutral job names:
+
+```text
+cloud-redis
+cloud-mysql
+cloud-postgres
+cloud-mongo
+cloud-node
 ```
 
-See [Prometheus Integration](docs/prometheus.md) for step-by-step guidance, [exporter scrape YAML snippets](docs/prometheus/exporters/), and [Kubernetes exporter install manifests](deploy/exporters/).
+Detailed examples:
+
+- [Prometheus integration guide](docs/prometheus.md)
+- [scrape config snippets](docs/prometheus/exporters/)
+- [exporter Kubernetes manifests](deploy/exporters/)
 
 ## Labels
 
-cloud-sd emits labels that work well with Grafana dashboard variable chains such as:
+cloud-sd emits dashboard-friendly labels:
+
+```text
+vendor, account, account_id, region, group, name, iid, cservice, resource_type, engine
+```
+
+The label set is designed for Grafana variable chains such as:
 
 ```text
 vendor -> account -> group -> name -> instance
 ```
 
-| Label | Meaning |
-|---|---|
-| `vendor` | Cloud provider, such as `aliyun` or `aws` |
-| `account` | Configured account name |
-| `account_id` | Cloud account ID resolved by STS |
-| `region` | Cloud region |
-| `group` | Scope tag value |
-| `name` | Cloud resource name |
-| `iid` | Cloud resource ID |
-| `cservice` | Service category, such as `redis` or `mysql` |
-| `resource_type` | Normalized resource type |
-| `engine` | Endpoint engine |
-
-Node Exporter dashboards query metrics such as `node_uname_info`, `node_cpu_seconds_total`, and `node_memory_*`. Database exporters expose different metric names, so label compatibility helps with filtering and identity, but it does not make database metrics populate Node Exporter panels.
-
 ## Permissions
 
-Use least-privilege cloud credentials.
+Use least-privilege read-only cloud credentials.
 
-Alibaba Cloud needs read permissions for:
+Alibaba Cloud needs STS identity, resource listing, resource details, and tag read permissions for Redis/Tair, RDS, MongoDB, and ECS.
 
-- STS `GetCallerIdentity`
-- Redis/Tair instance listing and tags
-- RDS instance listing, instance details, and tags
-- MongoDB instance listing, instance details, and tags
-- ECS instance listing and tags
-
-AWS needs read permissions for:
-
-- STS `GetCallerIdentity`
-- EC2 `DescribeInstances`
-- ElastiCache `DescribeReplicationGroups` and `ListTagsForResource`
-- RDS `DescribeDBInstances`
-- DocumentDB `DescribeDBClusters` and `ListTagsForResource`
-
-## Docker
-
-```bash
-docker build -t cloud-sd:local .
-docker run --rm -p 8080:8080 \
-  -e ALIYUN_PROD_ACCESS_KEY_ID \
-  -e ALIYUN_PROD_ACCESS_KEY_SECRET \
-  cloud-sd:local
-```
-
-For production, mount your own config file and inject credentials with your secret manager.
-
-## Kubernetes
-
-Kubernetes manifests are available in [deploy](deploy/):
-
-- [deploy/cloud-sd/cloud-sd.yaml](deploy/cloud-sd/cloud-sd.yaml) deploys cloud-sd with ConfigMap, Secret, Deployment, and Service.
-- [deploy/exporters](deploy/exporters/) deploys Redis, MySQL, PostgreSQL, MongoDB, and Node exporters.
-
-```bash
-kubectl apply -f deploy/cloud-sd/cloud-sd.yaml
-```
-
-Before applying, replace `CHANGE_ME` values, review accounts and regions in the ConfigMap, and update the image if you do not publish to `ghcr.io/ylighgh/cloud-sd:v0.1.0`.
-
-The image is published by the GitHub Actions workflow in [.github/workflows/docker.yml](.github/workflows/docker.yml). Push a `v*` tag, or run the workflow manually with `image_tag=v0.1.0`, to publish `ghcr.io/ylighgh/cloud-sd:v0.1.0`.
+AWS needs STS identity, EC2 `DescribeInstances`, ElastiCache `DescribeReplicationGroups` / `ListTagsForResource`, RDS `DescribeDBInstances`, and DocumentDB `DescribeDBClusters` / `ListTagsForResource`.
 
 ## Development
 
@@ -341,10 +269,6 @@ The binary is written to `bin/cloud-sd`.
 - optional disk cache for the latest successful snapshot
 - finer-grained per-account and per-region last-known-good cache
 - identity resolution singleflight to reduce STS calls
-
-## Contributing
-
-Issues and pull requests are welcome. Keep provider adapters behind the `ResourceSource` / provider factory boundary, and include tests for routing, HTTP SD labels, and error handling.
 
 ## License
 
