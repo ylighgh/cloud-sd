@@ -2,7 +2,7 @@
 
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](go.mod)
 [![Prometheus](https://img.shields.io/badge/Prometheus-HTTP%20SD-E6522C?logo=prometheus&logoColor=white)](docs/prometheus.zh-CN.md)
-[![Status](https://img.shields.io/badge/status-MVP-blue)](#项目状态)
+[![Status](https://img.shields.io/badge/status-v0.1.0-blue)](#项目状态)
 
 cloud-sd 是一个面向 Prometheus HTTP Service Discovery 的多云资源发现服务。它从 Alibaba Cloud 和 AWS 发现托管数据库、中间件和计算资源，归一化为 Prometheus `http_sd_configs` 兼容的 target groups，让 Prometheus 可以配合 exporter 进行采集。
 
@@ -32,7 +32,9 @@ Prometheus 原生支持很多 service discovery，但云数据库和中间件通
 
 ## 项目状态
 
-cloud-sd 当前处于 MVP 阶段。第一版刻意保持运行时轻量：
+cloud-sd `v0.1.0` 是第一个可用版本。它包含 Alibaba Cloud 和 AWS 资源发现 adapter、Prometheus HTTP SD 接口、exporter 部署示例，以及 multi-target scrape 配置。
+
+这个版本仍然刻意保持运行时轻量：
 
 - 不做 UI
 - 不依赖数据库
@@ -242,13 +244,13 @@ scrape_configs:
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
+      - source_labels: [__address__]
+        target_label: instance
       - target_label: __address__
         replacement: redis-exporter.monitoring.svc:9121
-      - source_labels: [__param_target]
-        target_label: instance
 ```
 
-Redis、PostgreSQL、MySQL、MongoDB 和 Node exporter 的完整示例见 [Prometheus 集成](docs/prometheus.zh-CN.md)。
+Redis、PostgreSQL、MySQL、MongoDB 和 Node exporter 的完整步骤见 [Prometheus 集成](docs/prometheus.zh-CN.md)，独立 Prometheus job YAML 见 [exporter YAML snippets](docs/prometheus/exporters/)，Kubernetes 安装清单见 [deploy/exporters](deploy/exporters/)。
 
 ## Labels
 

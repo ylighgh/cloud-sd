@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-exporter-config
+  namespace: monitoring
+type: Opaque
+stringData:
+  # The auth module name must match the Prometheus scrape config auth_module.
+  # Adjust sslmode, dbname, and TLS settings for your PostgreSQL environment.
+  postgres_exporter.yml: |
+    auth_modules:
+      cloud:
+        type: userpass
+        userpass:
+          username: exporter
+          password: CHANGE_ME
+        options:
+          sslmode: disable
+          dbname: postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-exporter
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: postgres-exporter
+    app.kubernetes.io/component: exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-exporter
+        app.kubernetes.io/component: exporter
+    spec:
+      containers:
+        - name: postgres-exporter
+          image: quay.io/prometheuscommunity/postgres-exporter:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config.file=/etc/postgres-exporter/postgres_exporter.yml
+            - --web.listen-address=:9187
+          ports:
+            - name: http
+              containerPort: 9187
+          volumeMounts:
+            - name: postgres-exporter-config
+              mountPath: /etc/postgres-exporter
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: postgres-exporter-config
+          secret:
+            secretName: postgres-exporter-config
+            items:
+              - key: postgres_exporter.yml
+                path: postgres_exporter.yml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-exporter
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: postgres-exporter
+    app.kubernetes.io/component: exporter
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: postgres-exporter
+  ports:
+    - name: http
+      port: 9187
+      targetPort: http

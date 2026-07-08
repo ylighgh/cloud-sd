@@ -76,7 +76,7 @@ relabel_configs:
     regex: (.+)
     target_label: __param_target
     replacement: $1
-  - source_labels: [__param_target]
+  - source_labels: [__address__]
     target_label: instance
   - target_label: __address__
     replacement: exporter-service.monitoring.svc:PORT
@@ -90,9 +90,27 @@ relabel_configs:
     regex: (.+)
     target_label: __param_target
     replacement: redis://$1
+  - source_labels: [__address__]
+    target_label: instance
 ```
 
 `instance` 建议设置为真实云资源地址，而不是 exporter 服务地址，这样 Grafana 和告警里看到的是被采集资源。
+
+## Exporter Kubernetes 和 Prometheus YAML 文件
+
+每个 exporter 的安装清单和 Prometheus scrape config 已拆成独立 YAML 文件：
+
+| Exporter | 安装清单 | Prometheus scrape config | cloud-sd endpoint |
+|---|---|---|---|
+| Redis Exporter | [redis-exporter.yaml](../deploy/exporters/redis-exporter.yaml) | [cloud-redis.yaml](prometheus/exporters/cloud-redis.yaml) | `/sd/redis` |
+| MySQL Exporter | [mysql-exporter.yaml](../deploy/exporters/mysql-exporter.yaml) | [cloud-mysql.yaml](prometheus/exporters/cloud-mysql.yaml) | `/sd/mysql` |
+| PostgreSQL Exporter | [postgres-exporter.yaml](../deploy/exporters/postgres-exporter.yaml) | [cloud-postgres.yaml](prometheus/exporters/cloud-postgres.yaml) | `/sd/postgres` |
+| MongoDB Exporter | [mongodb-exporter.yaml](../deploy/exporters/mongodb-exporter.yaml) | [cloud-mongo.yaml](prometheus/exporters/cloud-mongo.yaml) | `/sd/mongo` |
+| Node Exporter | [node-exporter.yaml](../deploy/exporters/node-exporter.yaml) | [cloud-node.yaml](prometheus/exporters/cloud-node.yaml) | `/sd/node` |
+
+安装清单里包含 Kubernetes `Service`，需要凭证或配置的 exporter 也包含 `Secret`。应用前需要替换所有 `CHANGE_ME` 占位。
+
+每个 scrape config 文件都是带 `scrape_configs` 顶层字段的独立片段。如果你的 `prometheus.yml` 已经有 `scrape_configs`，只需要把文件里的 `- job_name: ...` 这一项复制进去。如果使用 Prometheus Operator 或 Helm chart 的 `additionalScrapeConfigs`，同样只复制 job 条目。
 
 ## Redis Exporter 多实例采集
 
@@ -104,7 +122,7 @@ relabel_configs:
 
 ### 步骤 1：部署 redis_exporter
 
-示例服务地址：
+使用 [redis-exporter.yaml](../deploy/exporters/redis-exporter.yaml)。它会创建 `redis-exporter` Deployment、Secret 和 Service：
 
 ```text
 redis-exporter.monitoring.svc:9121
@@ -114,23 +132,9 @@ redis-exporter.monitoring.svc:9121
 
 ### 步骤 2：配置 Prometheus job
 
-```yaml
-scrape_configs:
-  - job_name: cloud-redis
-    metrics_path: /scrape
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/redis
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: redis://$1
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: redis-exporter.monitoring.svc:9121
-```
+使用 [exporters/cloud-redis.yaml](prometheus/exporters/cloud-redis.yaml)。
+
+这个配置会读取 `http://cloud-sd:8080/sd/redis`，把发现到的 `host:port` 改写成 `target=redis://host:port`，保留 `instance=host:port`，并把 scrape 请求发送到 `redis-exporter.monitoring.svc:9121`。
 
 最终请求形式类似：
 
@@ -157,7 +161,7 @@ redis_up{job="cloud-redis"}
 
 ### 步骤 1：部署 mysqld_exporter
 
-示例服务地址：
+使用 [mysql-exporter.yaml](../deploy/exporters/mysql-exporter.yaml)。它会创建 `mysqld-exporter` Deployment、基于 Secret 挂载的 `config.my-cnf` 和 Service：
 
 ```text
 mysqld-exporter.monitoring.svc:9104
@@ -173,23 +177,9 @@ client.cloud
 
 ### 步骤 2：配置 Prometheus job
 
-```yaml
-scrape_configs:
-  - job_name: cloud-mysql
-    metrics_path: /probe
-    params:
-      auth_module: [client.cloud]
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/mysql
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: __param_target
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: mysqld-exporter.monitoring.svc:9104
-```
+使用 [exporters/cloud-mysql.yaml](prometheus/exporters/cloud-mysql.yaml)。
+
+这个配置会读取 `http://cloud-sd:8080/sd/mysql`，把发现到的 `host:port` 作为 `target` 传给 exporter，使用 `auth_module=client.cloud`，保留 `instance=host:port`，并把 scrape 请求发送到 `mysqld-exporter.monitoring.svc:9104`。
 
 最终请求形式类似：
 
@@ -216,7 +206,7 @@ mysql_up{job="cloud-mysql"}
 
 ### 步骤 1：部署 postgres_exporter
 
-示例服务地址：
+使用 [postgres-exporter.yaml](../deploy/exporters/postgres-exporter.yaml)。它会创建 `postgres-exporter` Deployment、基于 Secret 挂载的 `postgres_exporter.yml` 和 Service：
 
 ```text
 postgres-exporter.monitoring.svc:9187
@@ -230,32 +220,14 @@ cloud
 
 ### 步骤 2：配置 Prometheus job
 
-很多 postgres_exporter 的 multi-target 模式期望 `target` 是 PostgreSQL URI。cloud-sd 返回的是 `host:port`，所以 relabel 时可以拼成 URI：
+使用 [exporters/cloud-postgres.yaml](prometheus/exporters/cloud-postgres.yaml)。
 
-```yaml
-scrape_configs:
-  - job_name: cloud-postgres
-    metrics_path: /probe
-    params:
-      auth_module: [cloud]
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/postgres
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: postgresql://$1/postgres?sslmode=disable
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: postgres-exporter.monitoring.svc:9187
-```
+这个配置会读取 `http://cloud-sd:8080/sd/postgres`，把发现到的 `host:port` 作为 `target` 传给 exporter，使用 `auth_module=cloud`，保留 `instance=host:port`，并把 scrape 请求发送到 `postgres-exporter.monitoring.svc:9187`。
 
 最终请求形式类似：
 
 ```text
-http://postgres-exporter.monitoring.svc:9187/probe?auth_module=cloud&target=postgresql://pg.example.com:5432/postgres?sslmode=disable
+http://postgres-exporter.monitoring.svc:9187/probe?auth_module=cloud&target=pg.example.com:5432
 ```
 
 ### 步骤 3：验证
@@ -265,7 +237,7 @@ up{job="cloud-postgres"}
 pg_up{job="cloud-postgres"}
 ```
 
-如果你的 exporter 期望 `target=host:port` 而不是 URI，去掉 `postgresql://` 前缀和路径即可。
+如果你的 exporter 版本期望完整 PostgreSQL URI，可以调整 [cloud-postgres.yaml](prometheus/exporters/cloud-postgres.yaml)，把 target 拼成 `postgresql://host:port/dbname?...`。
 
 ## MongoDB Exporter 多实例采集
 
@@ -277,7 +249,7 @@ pg_up{job="cloud-postgres"}
 
 ### 步骤 1：部署 mongodb_exporter
 
-示例服务地址：
+使用 [mongodb-exporter.yaml](../deploy/exporters/mongodb-exporter.yaml)。它会创建 `mongodb-exporter` Deployment、Secret 和 Service：
 
 ```text
 mongodb-exporter.monitoring.svc:9216
@@ -287,23 +259,9 @@ mongodb-exporter.monitoring.svc:9216
 
 ### 步骤 2：配置 Prometheus job
 
-```yaml
-scrape_configs:
-  - job_name: cloud-mongo
-    metrics_path: /scrape
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/mongo
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: mongodb://$1
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: mongodb-exporter.monitoring.svc:9216
-```
+使用 [exporters/cloud-mongo.yaml](prometheus/exporters/cloud-mongo.yaml)。
+
+这个配置会读取 `http://cloud-sd:8080/sd/mongo`，把发现到的 `host:port` 改写成 `target=mongodb://host:port`，保留 `instance=host:port`，并把 scrape 请求发送到 `mongodb-exporter.monitoring.svc:9216`。
 
 最终请求形式类似：
 
@@ -336,18 +294,11 @@ mongodb_up{job="cloud-mongo"}
 
 - systemd service
 - Ansible / Terraform / cloud-init
-- Kubernetes 节点上用 DaemonSet，但这种情况下更常见的是 Kubernetes SD
+- Kubernetes 节点上用 [node-exporter.yaml](../deploy/exporters/node-exporter.yaml) 部署 DaemonSet，但这种情况下更常见的是 Kubernetes SD
 
 ### 步骤 2：配置 Prometheus job
 
-```yaml
-scrape_configs:
-  - job_name: cloud-node
-    metrics_path: /metrics
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/node
-        refresh_interval: 60s
-```
+使用 [exporters/cloud-node.yaml](prometheus/exporters/cloud-node.yaml)。
 
 不需要把 `__address__` 改写到 exporter 服务，因为目标主机本身就是 node_exporter endpoint。
 
@@ -363,80 +314,17 @@ node_cpu_seconds_total{job="cloud-node"}
 
 cloud-sd 不过滤 ECS/EC2 的运行状态。停止或误关机实例仍会出现在 `/sd/node` 中，并在 Prometheus 中表现为 `up=0`。
 
-## 完整 scrape_configs 示例
+## 合并配置文件
 
-下面示例假设 exporter 服务都部署在 `monitoring` 命名空间或同等网络域名下：
+Prometheus 需要一个统一的顶层 `scrape_configs` 列表。如果要启用全部任务，把下面每个 YAML 文件里的 job 条目复制到同一个 `scrape_configs` 下：
 
-```yaml
-scrape_configs:
-  - job_name: cloud-redis
-    metrics_path: /scrape
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/redis
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: redis://$1
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: redis-exporter.monitoring.svc:9121
+- [exporters/cloud-redis.yaml](prometheus/exporters/cloud-redis.yaml)
+- [exporters/cloud-mysql.yaml](prometheus/exporters/cloud-mysql.yaml)
+- [exporters/cloud-postgres.yaml](prometheus/exporters/cloud-postgres.yaml)
+- [exporters/cloud-mongo.yaml](prometheus/exporters/cloud-mongo.yaml)
+- [exporters/cloud-node.yaml](prometheus/exporters/cloud-node.yaml)
 
-  - job_name: cloud-mysql
-    metrics_path: /probe
-    params:
-      auth_module: [client.cloud]
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/mysql
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: __param_target
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: mysqld-exporter.monitoring.svc:9104
-
-  - job_name: cloud-postgres
-    metrics_path: /probe
-    params:
-      auth_module: [cloud]
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/postgres
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: postgresql://$1/postgres?sslmode=disable
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: postgres-exporter.monitoring.svc:9187
-
-  - job_name: cloud-mongo
-    metrics_path: /scrape
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/mongo
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: mongodb://$1
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: mongodb-exporter.monitoring.svc:9216
-
-  - job_name: cloud-node
-    metrics_path: /metrics
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/node
-        refresh_interval: 60s
-```
+Exporter 安装清单在 [deploy/exporters](../deploy/exporters/)。
 
 ## Labels
 
@@ -519,7 +407,3 @@ count by (job, vendor, account, region, group, engine) (up{job=~"cloud-.*"})
 | `instance` 变成 exporter 地址 | 缺少 `__param_target -> instance` relabel | 补充 relabel 规则 |
 | scope 过滤不生效 | 云资源 tag 缺失或 tag API 权限不足 | 检查 `cloud_sd_scope` 和 tag 读取权限 |
 | 禁用资源仍出现 | `cloud_sd_disable=true` 未配置或 tag 读取失败 | 检查资源 tag 和 cloud-sd refresh 日志 |
-
-### 5. 指标名提醒
-
-Node Exporter 看板要求 `node_uname_info`、`node_cpu_seconds_total`、`node_memory_*` 等 Node Exporter 指标。数据库 exporter 的指标名不同，所以 label 兼容解决的是身份和筛选维度，不会让数据库指标直接填充 Node Exporter 面板。

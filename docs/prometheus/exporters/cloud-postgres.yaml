@@ -1,0 +1,42 @@
+# Prometheus scrape_config for RDS PostgreSQL and Aurora PostgreSQL targets discovered by cloud-sd.
+#
+# Copy the job below into prometheus.yml under scrape_configs.
+# If your deployment uses Prometheus Operator / Helm additionalScrapeConfigs,
+# copy only the "- job_name: cloud-postgres" item.
+#
+# Expected runtime flow:
+#   Prometheus -> cloud-sd /sd/postgres -> postgres_exporter /probe?target=<host:port>&auth_module=cloud -> PostgreSQL
+#
+# Replace these placeholders for your environment:
+#   http://cloud-sd:8080/sd/postgres
+#   postgres-exporter.monitoring.svc:9187
+#   cloud
+scrape_configs:
+  - job_name: cloud-postgres
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    metrics_path: /probe
+    params:
+      # The auth module must exist in the postgres_exporter config.
+      # Store database credentials in the exporter config or Secret.
+      auth_module: [cloud]
+    http_sd_configs:
+      - url: http://cloud-sd:8080/sd/postgres
+        refresh_interval: 60s
+    relabel_configs:
+      # cloud-sd returns host:port. postgres_exporter multi-target mode can
+      # combine this target with credentials/options from auth_module.
+      - source_labels: [__address__]
+        target_label: __param_target
+
+      # Keep Prometheus "instance" as the real PostgreSQL target.
+      - source_labels: [__address__]
+        target_label: instance
+
+      # Send the scrape request to postgres_exporter.
+      - target_label: __address__
+        replacement: postgres-exporter.monitoring.svc:9187
+
+      # Optional constant label for easier filtering.
+      - target_label: exporter
+        replacement: postgres_exporter

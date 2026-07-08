@@ -76,7 +76,7 @@ relabel_configs:
     regex: (.+)
     target_label: __param_target
     replacement: $1
-  - source_labels: [__param_target]
+  - source_labels: [__address__]
     target_label: instance
   - target_label: __address__
     replacement: exporter-service.monitoring.svc:PORT
@@ -90,9 +90,27 @@ relabel_configs:
     regex: (.+)
     target_label: __param_target
     replacement: redis://$1
+  - source_labels: [__address__]
+    target_label: instance
 ```
 
 Set `instance` to the real cloud resource address, not the exporter service address.
+
+## Exporter Kubernetes and Prometheus YAML Files
+
+Exporter installation manifests and Prometheus scrape configs are split into separate files:
+
+| Exporter | Install manifest | Prometheus scrape config | cloud-sd endpoint |
+|---|---|---|---|
+| Redis Exporter | [redis-exporter.yaml](../deploy/exporters/redis-exporter.yaml) | [cloud-redis.yaml](prometheus/exporters/cloud-redis.yaml) | `/sd/redis` |
+| MySQL Exporter | [mysql-exporter.yaml](../deploy/exporters/mysql-exporter.yaml) | [cloud-mysql.yaml](prometheus/exporters/cloud-mysql.yaml) | `/sd/mysql` |
+| PostgreSQL Exporter | [postgres-exporter.yaml](../deploy/exporters/postgres-exporter.yaml) | [cloud-postgres.yaml](prometheus/exporters/cloud-postgres.yaml) | `/sd/postgres` |
+| MongoDB Exporter | [mongodb-exporter.yaml](../deploy/exporters/mongodb-exporter.yaml) | [cloud-mongo.yaml](prometheus/exporters/cloud-mongo.yaml) | `/sd/mongo` |
+| Node Exporter | [node-exporter.yaml](../deploy/exporters/node-exporter.yaml) | [cloud-node.yaml](prometheus/exporters/cloud-node.yaml) | `/sd/node` |
+
+The install manifests include Kubernetes `Service` objects and credentials/config `Secret` objects where needed. Replace all `CHANGE_ME` placeholders before applying them.
+
+Each scrape config file contains a standalone `scrape_configs` fragment. If your `prometheus.yml` already has `scrape_configs`, copy only the `- job_name: ...` item into that list. If you use Prometheus Operator or a Helm chart with `additionalScrapeConfigs`, copy only the job item as well.
 
 ## Redis Exporter Multi-Target Scraping
 
@@ -104,7 +122,7 @@ Use this when:
 
 ### Step 1: Deploy redis_exporter
 
-Example service:
+Use [redis-exporter.yaml](../deploy/exporters/redis-exporter.yaml). It creates a `redis-exporter` Deployment, Secret, and Service:
 
 ```text
 redis-exporter.monitoring.svc:9121
@@ -114,23 +132,9 @@ If Redis requires auth, inject credentials through exporter environment variable
 
 ### Step 2: Configure Prometheus
 
-```yaml
-scrape_configs:
-  - job_name: cloud-redis
-    metrics_path: /scrape
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/redis
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: redis://$1
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: redis-exporter.monitoring.svc:9121
-```
+Use [exporters/cloud-redis.yaml](prometheus/exporters/cloud-redis.yaml).
+
+The config reads `http://cloud-sd:8080/sd/redis`, rewrites the discovered `host:port` to `target=redis://host:port`, keeps `instance=host:port`, and sends the scrape to `redis-exporter.monitoring.svc:9121`.
 
 Final request:
 
@@ -157,7 +161,7 @@ Use this when:
 
 ### Step 1: Deploy mysqld_exporter
 
-Example service:
+Use [mysql-exporter.yaml](../deploy/exporters/mysql-exporter.yaml). It creates a `mysqld-exporter` Deployment, Secret-backed `config.my-cnf`, and Service:
 
 ```text
 mysqld-exporter.monitoring.svc:9104
@@ -173,23 +177,9 @@ Prometheus should pass only the target address, not database credentials.
 
 ### Step 2: Configure Prometheus
 
-```yaml
-scrape_configs:
-  - job_name: cloud-mysql
-    metrics_path: /probe
-    params:
-      auth_module: [client.cloud]
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/mysql
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: __param_target
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: mysqld-exporter.monitoring.svc:9104
-```
+Use [exporters/cloud-mysql.yaml](prometheus/exporters/cloud-mysql.yaml).
+
+The config reads `http://cloud-sd:8080/sd/mysql`, passes the discovered `host:port` as `target`, uses `auth_module=client.cloud`, keeps `instance=host:port`, and sends the scrape to `mysqld-exporter.monitoring.svc:9104`.
 
 Final request:
 
@@ -216,7 +206,7 @@ Use this when:
 
 ### Step 1: Deploy postgres_exporter
 
-Example service:
+Use [postgres-exporter.yaml](../deploy/exporters/postgres-exporter.yaml). It creates a `postgres-exporter` Deployment, Secret-backed `postgres_exporter.yml`, and Service:
 
 ```text
 postgres-exporter.monitoring.svc:9187
@@ -230,32 +220,14 @@ cloud
 
 ### Step 2: Configure Prometheus
 
-Many postgres_exporter multi-target setups expect `target` to be a PostgreSQL URI. cloud-sd returns `host:port`, so relabeling can build the URI:
+Use [exporters/cloud-postgres.yaml](prometheus/exporters/cloud-postgres.yaml).
 
-```yaml
-scrape_configs:
-  - job_name: cloud-postgres
-    metrics_path: /probe
-    params:
-      auth_module: [cloud]
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/postgres
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: postgresql://$1/postgres?sslmode=disable
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: postgres-exporter.monitoring.svc:9187
-```
+The config reads `http://cloud-sd:8080/sd/postgres`, passes the discovered `host:port` as `target`, uses `auth_module=cloud`, keeps `instance=host:port`, and sends the scrape to `postgres-exporter.monitoring.svc:9187`.
 
 Final request:
 
 ```text
-http://postgres-exporter.monitoring.svc:9187/probe?auth_module=cloud&target=postgresql://pg.example.com:5432/postgres?sslmode=disable
+http://postgres-exporter.monitoring.svc:9187/probe?auth_module=cloud&target=pg.example.com:5432
 ```
 
 ### Step 3: Verify
@@ -265,7 +237,7 @@ up{job="cloud-postgres"}
 pg_up{job="cloud-postgres"}
 ```
 
-If your exporter expects `target=host:port`, remove the `postgresql://` prefix and path.
+If your exporter expects a full PostgreSQL URI, change [cloud-postgres.yaml](prometheus/exporters/cloud-postgres.yaml) to build `target=postgresql://host:port/dbname?...`.
 
 ## MongoDB Exporter Multi-Target Scraping
 
@@ -277,7 +249,7 @@ Use this when:
 
 ### Step 1: Deploy mongodb_exporter
 
-Example service:
+Use [mongodb-exporter.yaml](../deploy/exporters/mongodb-exporter.yaml). It creates a `mongodb-exporter` Deployment, Secret, and Service:
 
 ```text
 mongodb-exporter.monitoring.svc:9216
@@ -287,23 +259,9 @@ Different MongoDB exporters use different multi-target paths and parameters. The
 
 ### Step 2: Configure Prometheus
 
-```yaml
-scrape_configs:
-  - job_name: cloud-mongo
-    metrics_path: /scrape
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/mongo
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: mongodb://$1
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: mongodb-exporter.monitoring.svc:9216
-```
+Use [exporters/cloud-mongo.yaml](prometheus/exporters/cloud-mongo.yaml).
+
+The config reads `http://cloud-sd:8080/sd/mongo`, rewrites the discovered `host:port` to `target=mongodb://host:port`, keeps `instance=host:port`, and sends the scrape to `mongodb-exporter.monitoring.svc:9216`.
 
 Final request:
 
@@ -336,18 +294,11 @@ Common deployment methods:
 
 - systemd service
 - Ansible / Terraform / cloud-init
-- Kubernetes DaemonSet, although Kubernetes SD is often a better fit for Kubernetes nodes
+- Kubernetes DaemonSet with [node-exporter.yaml](../deploy/exporters/node-exporter.yaml), although Kubernetes SD is often a better fit for Kubernetes nodes
 
 ### Step 2: Configure Prometheus
 
-```yaml
-scrape_configs:
-  - job_name: cloud-node
-    metrics_path: /metrics
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/node
-        refresh_interval: 60s
-```
+Use [exporters/cloud-node.yaml](prometheus/exporters/cloud-node.yaml).
 
 No exporter-service rewrite is needed because the discovered target is already the Node Exporter endpoint.
 
@@ -361,80 +312,17 @@ node_cpu_seconds_total{job="cloud-node"}
 
 cloud-sd does not filter ECS/EC2 by running state. Stopped instances remain in `/sd/node` and appear as `up=0`.
 
-## Complete scrape_configs Example
+## Combining the Files
 
-This example assumes exporters are reachable through `monitoring` service DNS names:
+Prometheus expects one top-level `scrape_configs` list. To enable all jobs, copy the job item from each exporter YAML into the same list:
 
-```yaml
-scrape_configs:
-  - job_name: cloud-redis
-    metrics_path: /scrape
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/redis
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: redis://$1
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: redis-exporter.monitoring.svc:9121
+- [exporters/cloud-redis.yaml](prometheus/exporters/cloud-redis.yaml)
+- [exporters/cloud-mysql.yaml](prometheus/exporters/cloud-mysql.yaml)
+- [exporters/cloud-postgres.yaml](prometheus/exporters/cloud-postgres.yaml)
+- [exporters/cloud-mongo.yaml](prometheus/exporters/cloud-mongo.yaml)
+- [exporters/cloud-node.yaml](prometheus/exporters/cloud-node.yaml)
 
-  - job_name: cloud-mysql
-    metrics_path: /probe
-    params:
-      auth_module: [client.cloud]
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/mysql
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: __param_target
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: mysqld-exporter.monitoring.svc:9104
-
-  - job_name: cloud-postgres
-    metrics_path: /probe
-    params:
-      auth_module: [cloud]
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/postgres
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: postgresql://$1/postgres?sslmode=disable
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: postgres-exporter.monitoring.svc:9187
-
-  - job_name: cloud-mongo
-    metrics_path: /scrape
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/mongo
-        refresh_interval: 60s
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.+)
-        target_label: __param_target
-        replacement: mongodb://$1
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: mongodb-exporter.monitoring.svc:9216
-
-  - job_name: cloud-node
-    metrics_path: /metrics
-    http_sd_configs:
-      - url: http://cloud-sd:8080/sd/node
-        refresh_interval: 60s
-```
+Exporter install manifests live in [deploy/exporters](../deploy/exporters/).
 
 ## Labels
 

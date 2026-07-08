@@ -2,7 +2,7 @@
 
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](go.mod)
 [![Prometheus](https://img.shields.io/badge/Prometheus-HTTP%20SD-E6522C?logo=prometheus&logoColor=white)](docs/prometheus.md)
-[![Status](https://img.shields.io/badge/status-MVP-blue)](#project-status)
+[![Status](https://img.shields.io/badge/status-v0.1.0-blue)](#project-status)
 
 cloud-sd is a multi-cloud resource discovery service for Prometheus HTTP Service Discovery. It discovers managed databases, middleware, and compute resources from Alibaba Cloud and AWS, normalizes them into Prometheus `http_sd_configs` target groups, and lets Prometheus scrape them through exporters.
 
@@ -32,7 +32,9 @@ Use cloud-sd when you want to:
 
 ## Project Status
 
-cloud-sd is an MVP. The first version intentionally keeps the runtime small:
+cloud-sd `v0.1.0` is the first usable release. It includes Alibaba Cloud and AWS discovery adapters, Prometheus HTTP SD endpoints, exporter deployment examples, and multi-target scrape configuration.
+
+This release intentionally keeps the runtime small:
 
 - no UI
 - no database dependency
@@ -242,13 +244,13 @@ scrape_configs:
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
+      - source_labels: [__address__]
+        target_label: instance
       - target_label: __address__
         replacement: redis-exporter.monitoring.svc:9121
-      - source_labels: [__param_target]
-        target_label: instance
 ```
 
-See [Prometheus Integration](docs/prometheus.md) for Redis, PostgreSQL, MySQL, MongoDB, and Node exporter examples.
+See [Prometheus Integration](docs/prometheus.md) for step-by-step guidance, [exporter scrape YAML snippets](docs/prometheus/exporters/), and [Kubernetes exporter install manifests](deploy/exporters/).
 
 ## Labels
 
