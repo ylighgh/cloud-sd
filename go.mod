@@ -4,12 +4,24 @@ go 1.25.0
 
 require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.107
-	github.com/aws/aws-sdk-go v1.40.45
+	github.com/aws/aws-sdk-go-v2 v1.42.1
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.27
+	github.com/aws/aws-sdk-go-v2/service/docdb v1.50.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.313.0
+	github.com/aws/aws-sdk-go-v2/service/elasticache v1.55.0
+	github.com/aws/aws-sdk-go-v2/service/rds v1.120.0
+	github.com/aws/aws-sdk-go-v2/service/sts v1.44.0
 	github.com/gin-gonic/gin v1.10.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.30 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.30 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.31 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.30 // indirect
+	github.com/aws/smithy-go v1.27.3 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect

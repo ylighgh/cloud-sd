@@ -18,11 +18,11 @@ func TestNewSDKClientAppliesRequestTimeout(t *testing.T) {
 		t.Fatalf("newSDKClient() error = %v", err)
 	}
 
-	if client.sts.Config.HTTPClient == nil {
-		t.Fatal("sts HTTP client is nil")
+	if client.httpClient == nil {
+		t.Fatal("HTTP client is nil")
 	}
-	if client.sts.Config.HTTPClient.Timeout != 7*time.Second {
-		t.Fatalf("sts HTTP client timeout = %s, want 7s", client.sts.Config.HTTPClient.Timeout)
+	if client.httpClient.Timeout != 7*time.Second {
+		t.Fatalf("HTTP client timeout = %s, want 7s", client.httpClient.Timeout)
 	}
 }
 

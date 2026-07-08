@@ -2,7 +2,7 @@
 
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](go.mod)
 [![Prometheus](https://img.shields.io/badge/Prometheus-HTTP%20SD-E6522C?logo=prometheus&logoColor=white)](docs/prometheus.md)
-[![Status](https://img.shields.io/badge/status-v0.1.0-blue)](#status)
+[![Status](https://img.shields.io/badge/status-v0.1.1-blue)](#status)
 
 prometheus-cloud-sd is a multi-cloud resource discovery service for Prometheus HTTP Service Discovery. It discovers cloud databases, middleware, and compute resources from Alibaba Cloud and AWS, converts them into Prometheus `http_sd_configs` target groups, and lets Prometheus scrape them through exporters.
 
@@ -10,7 +10,7 @@ prometheus-cloud-sd is a multi-cloud resource discovery service for Prometheus H
 
 ## Status
 
-`v0.1.0` is the first usable release.
+`v0.1.1` is the current release. `v0.1.0` was the first usable release.
 
 Included:
 
@@ -21,7 +21,7 @@ Included:
 - Kubernetes manifests for prometheus-cloud-sd and exporters
 - GHCR image publishing workflow
 
-Still intentionally out of scope for v0.1.0:
+Still intentionally out of scope for v0.1.1:
 
 - UI
 - database storage
@@ -37,7 +37,7 @@ Still intentionally out of scope for v0.1.0:
 The default manifest uses:
 
 ```text
-ghcr.io/ylighgh/prometheus-cloud-sd:v0.1.0
+ghcr.io/ylighgh/prometheus-cloud-sd:v0.1.1
 ```
 
 The image is built by [.github/workflows/docker.yml](.github/workflows/docker.yml). It runs on `v*` tags and can also be triggered manually.

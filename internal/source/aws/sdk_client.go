@@ -6,24 +6,27 @@ import (
 	"net/http"
 	"strings"
 
-	awslib "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/docdb"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/elasticache"
-	"github.com/aws/aws-sdk-go/service/rds"
-	"github.com/aws/aws-sdk-go/service/sts"
+	awslib "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	docdbsvc "github.com/aws/aws-sdk-go-v2/service/docdb"
+	ec2svc "github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	elasticachesvc "github.com/aws/aws-sdk-go-v2/service/elasticache"
+	elasticachetypes "github.com/aws/aws-sdk-go-v2/service/elasticache/types"
+	rdssvc "github.com/aws/aws-sdk-go-v2/service/rds"
+	rdstypes "github.com/aws/aws-sdk-go-v2/service/rds/types"
+	stssvc "github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/ylighgh/prometheus-cloud-sd/internal/core"
 )
 
 type SDKClient struct {
 	region      string
-	sts         *sts.STS
-	ec2         *ec2.EC2
-	elasticache *elasticache.ElastiCache
-	rds         *rds.RDS
-	docdb       *docdb.DocDB
+	httpClient  *http.Client
+	sts         *stssvc.Client
+	ec2         *ec2svc.Client
+	elasticache *elasticachesvc.Client
+	rds         *rdssvc.Client
+	docdb       *docdbsvc.Client
 }
 
 func NewRedisSDKClient(account AccountConfig, region string, opts ClientOptions) (RedisClient, error) {
@@ -47,90 +50,81 @@ func newSDKClient(account AccountConfig, region string, opts ClientOptions) (*SD
 	if err != nil {
 		return nil, err
 	}
-	cfg := &awslib.Config{
-		Region: awslib.String(region),
-		Credentials: credentials.NewStaticCredentials(
+	var httpClient *http.Client
+	cfg := awslib.Config{
+		Region: region,
+		Credentials: credentials.NewStaticCredentialsProvider(
 			resolved.AccessKeyID,
 			resolved.SecretAccessKey,
 			resolved.SessionToken,
 		),
 	}
 	if opts.RequestTimeout > 0 {
-		cfg.HTTPClient = &http.Client{Timeout: opts.RequestTimeout}
-	}
-	sess, err := session.NewSession(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("create aws session: %w", err)
+		httpClient = &http.Client{Timeout: opts.RequestTimeout}
+		cfg.HTTPClient = httpClient
 	}
 	return &SDKClient{
 		region:      region,
-		sts:         sts.New(sess),
-		ec2:         ec2.New(sess),
-		elasticache: elasticache.New(sess),
-		rds:         rds.New(sess),
-		docdb:       docdb.New(sess),
+		httpClient:  httpClient,
+		sts:         stssvc.NewFromConfig(cfg),
+		ec2:         ec2svc.NewFromConfig(cfg),
+		elasticache: elasticachesvc.NewFromConfig(cfg),
+		rds:         rdssvc.NewFromConfig(cfg),
+		docdb:       docdbsvc.NewFromConfig(cfg),
 	}, nil
 }
 
 func (c *SDKClient) GetCallerIdentity(ctx context.Context) (string, error) {
-	output, err := c.sts.GetCallerIdentityWithContext(ctx, &sts.GetCallerIdentityInput{})
+	output, err := c.sts.GetCallerIdentity(ctx, &stssvc.GetCallerIdentityInput{})
 	if err != nil {
 		return "", err
 	}
-	if awslib.StringValue(output.Account) == "" {
+	if awslib.ToString(output.Account) == "" {
 		return "", fmt.Errorf("sts GetCallerIdentity returned empty account id")
 	}
-	return awslib.StringValue(output.Account), nil
+	return awslib.ToString(output.Account), nil
 }
 
 func (c *SDKClient) DescribeRedisInstances(ctx context.Context) ([]RedisInstance, error) {
 	var instances []RedisInstance
-	var pageErr error
-	err := c.elasticache.DescribeReplicationGroupsPagesWithContext(
-		ctx,
-		&elasticache.DescribeReplicationGroupsInput{},
-		func(output *elasticache.DescribeReplicationGroupsOutput, _ bool) bool {
-			for _, group := range output.ReplicationGroups {
-				endpoint := redisEndpoint(group)
-				if endpoint == nil {
-					continue
-				}
-				tags, err := c.elasticacheTags(ctx, awslib.StringValue(group.ARN))
-				tags, err = tagsOrEmptyUnlessContextDone(ctx, tags, err)
-				if err != nil {
-					pageErr = err
-					return false
-				}
-				instances = append(instances, RedisInstance{
-					ID:      awslib.StringValue(group.ReplicationGroupId),
-					Name:    awslib.StringValue(group.ReplicationGroupId),
-					Region:  c.region,
-					Address: awslib.StringValue(endpoint.Address),
-					Port:    int(awslib.Int64Value(endpoint.Port)),
-					Tags:    tags,
-				})
-			}
-			return true
-		},
+	paginator := elasticachesvc.NewDescribeReplicationGroupsPaginator(
+		c.elasticache,
+		&elasticachesvc.DescribeReplicationGroupsInput{},
 	)
-	if err != nil {
-		return nil, err
-	}
-	if pageErr != nil {
-		return nil, pageErr
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, group := range output.ReplicationGroups {
+			endpoint := redisEndpoint(group)
+			if endpoint == nil {
+				continue
+			}
+			tags, err := c.elasticacheTags(ctx, awslib.ToString(group.ARN))
+			tags, err = tagsOrEmptyUnlessContextDone(ctx, tags, err)
+			if err != nil {
+				return nil, err
+			}
+			instances = append(instances, RedisInstance{
+				ID:      awslib.ToString(group.ReplicationGroupId),
+				Name:    awslib.ToString(group.ReplicationGroupId),
+				Region:  c.region,
+				Address: awslib.ToString(endpoint.Address),
+				Port:    int(awslib.ToInt32(endpoint.Port)),
+				Tags:    tags,
+			})
+		}
 	}
 	return instances, nil
 }
 
-func redisEndpoint(group *elasticache.ReplicationGroup) *elasticache.Endpoint {
-	if group == nil {
-		return nil
-	}
-	if group.ConfigurationEndpoint != nil && awslib.StringValue(group.ConfigurationEndpoint.Address) != "" {
+func redisEndpoint(group elasticachetypes.ReplicationGroup) *elasticachetypes.Endpoint {
+	if group.ConfigurationEndpoint != nil && awslib.ToString(group.ConfigurationEndpoint.Address) != "" {
 		return group.ConfigurationEndpoint
 	}
 	for _, nodeGroup := range group.NodeGroups {
-		if nodeGroup.PrimaryEndpoint != nil && awslib.StringValue(nodeGroup.PrimaryEndpoint.Address) != "" {
+		if nodeGroup.PrimaryEndpoint != nil && awslib.ToString(nodeGroup.PrimaryEndpoint.Address) != "" {
 			return nodeGroup.PrimaryEndpoint
 		}
 	}
@@ -139,30 +133,30 @@ func redisEndpoint(group *elasticache.ReplicationGroup) *elasticache.Endpoint {
 
 func (c *SDKClient) DescribeRDSInstances(ctx context.Context) ([]RDSInstance, error) {
 	var instances []RDSInstance
-	err := c.rds.DescribeDBInstancesPagesWithContext(
-		ctx,
-		&rds.DescribeDBInstancesInput{},
-		func(output *rds.DescribeDBInstancesOutput, _ bool) bool {
-			for _, db := range output.DBInstances {
-				engine := awslib.StringValue(db.Engine)
-				if !isSupportedRDSEngine(engine) || db.Endpoint == nil {
-					continue
-				}
-				instances = append(instances, RDSInstance{
-					ID:      awslib.StringValue(db.DBInstanceIdentifier),
-					Name:    awslib.StringValue(db.DBInstanceIdentifier),
-					Region:  c.region,
-					Engine:  rdsEngine(engine),
-					Address: awslib.StringValue(db.Endpoint.Address),
-					Port:    int(awslib.Int64Value(db.Endpoint.Port)),
-					Tags:    awsRDSTagsToMap(db.TagList),
-				})
-			}
-			return true
-		},
+	paginator := rdssvc.NewDescribeDBInstancesPaginator(
+		c.rds,
+		&rdssvc.DescribeDBInstancesInput{},
 	)
-	if err != nil {
-		return nil, err
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, db := range output.DBInstances {
+			engine := awslib.ToString(db.Engine)
+			if !isSupportedRDSEngine(engine) || db.Endpoint == nil {
+				continue
+			}
+			instances = append(instances, RDSInstance{
+				ID:      awslib.ToString(db.DBInstanceIdentifier),
+				Name:    awslib.ToString(db.DBInstanceIdentifier),
+				Region:  c.region,
+				Engine:  rdsEngine(engine),
+				Address: awslib.ToString(db.Endpoint.Address),
+				Port:    int(awslib.ToInt32(db.Endpoint.Port)),
+				Tags:    awsRDSTagsToMap(db.TagList),
+			})
+		}
 	}
 	return instances, nil
 }
@@ -180,66 +174,61 @@ func rdsEngine(engine string) core.Engine {
 
 func (c *SDKClient) DescribeMongoInstances(ctx context.Context) ([]MongoInstance, error) {
 	var instances []MongoInstance
-	var pageErr error
-	err := c.docdb.DescribeDBClustersPagesWithContext(
-		ctx,
-		&docdb.DescribeDBClustersInput{},
-		func(output *docdb.DescribeDBClustersOutput, _ bool) bool {
-			for _, cluster := range output.DBClusters {
-				if awslib.StringValue(cluster.Endpoint) == "" || awslib.Int64Value(cluster.Port) == 0 {
-					continue
-				}
-				tags, err := c.docdbTags(ctx, awslib.StringValue(cluster.DBClusterArn))
-				tags, err = tagsOrEmptyUnlessContextDone(ctx, tags, err)
-				if err != nil {
-					pageErr = err
-					return false
-				}
-				instances = append(instances, MongoInstance{
-					ID:      awslib.StringValue(cluster.DBClusterIdentifier),
-					Name:    awslib.StringValue(cluster.DBClusterIdentifier),
-					Region:  c.region,
-					Address: awslib.StringValue(cluster.Endpoint),
-					Port:    int(awslib.Int64Value(cluster.Port)),
-					Tags:    tags,
-				})
-			}
-			return true
-		},
+	paginator := docdbsvc.NewDescribeDBClustersPaginator(
+		c.docdb,
+		&docdbsvc.DescribeDBClustersInput{},
 	)
-	if err != nil {
-		return nil, err
-	}
-	if pageErr != nil {
-		return nil, pageErr
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, cluster := range output.DBClusters {
+			if awslib.ToString(cluster.Endpoint) == "" || awslib.ToInt32(cluster.Port) == 0 {
+				continue
+			}
+			tags, err := c.docdbTags(ctx, awslib.ToString(cluster.DBClusterArn))
+			tags, err = tagsOrEmptyUnlessContextDone(ctx, tags, err)
+			if err != nil {
+				return nil, err
+			}
+			instances = append(instances, MongoInstance{
+				ID:      awslib.ToString(cluster.DBClusterIdentifier),
+				Name:    awslib.ToString(cluster.DBClusterIdentifier),
+				Region:  c.region,
+				Address: awslib.ToString(cluster.Endpoint),
+				Port:    int(awslib.ToInt32(cluster.Port)),
+				Tags:    tags,
+			})
+		}
 	}
 	return instances, nil
 }
 
 func (c *SDKClient) DescribeEC2Instances(ctx context.Context) ([]EC2Instance, error) {
 	var instances []EC2Instance
-	err := c.ec2.DescribeInstancesPagesWithContext(
-		ctx,
-		&ec2.DescribeInstancesInput{},
-		func(output *ec2.DescribeInstancesOutput, _ bool) bool {
-			for _, reservation := range output.Reservations {
-				for _, instance := range reservation.Instances {
-					tags := ec2TagsToMap(instance.Tags)
-					instances = append(instances, EC2Instance{
-						ID:        awslib.StringValue(instance.InstanceId),
-						Name:      firstNonEmpty(tags["Name"], awslib.StringValue(instance.InstanceId)),
-						Region:    c.region,
-						PrivateIP: awslib.StringValue(instance.PrivateIpAddress),
-						PublicIP:  awslib.StringValue(instance.PublicIpAddress),
-						Tags:      tags,
-					})
-				}
-			}
-			return true
-		},
+	paginator := ec2svc.NewDescribeInstancesPaginator(
+		c.ec2,
+		&ec2svc.DescribeInstancesInput{},
 	)
-	if err != nil {
-		return nil, err
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, reservation := range output.Reservations {
+			for _, instance := range reservation.Instances {
+				tags := ec2TagsToMap(instance.Tags)
+				instances = append(instances, EC2Instance{
+					ID:        awslib.ToString(instance.InstanceId),
+					Name:      firstNonEmpty(tags["Name"], awslib.ToString(instance.InstanceId)),
+					Region:    c.region,
+					PrivateIP: awslib.ToString(instance.PrivateIpAddress),
+					PublicIP:  awslib.ToString(instance.PublicIpAddress),
+					Tags:      tags,
+				})
+			}
+		}
 	}
 	return instances, nil
 }
@@ -248,7 +237,7 @@ func (c *SDKClient) elasticacheTags(ctx context.Context, arn string) (map[string
 	if arn == "" {
 		return map[string]string{}, nil
 	}
-	output, err := c.elasticache.ListTagsForResourceWithContext(ctx, &elasticache.ListTagsForResourceInput{
+	output, err := c.elasticache.ListTagsForResource(ctx, &elasticachesvc.ListTagsForResourceInput{
 		ResourceName: awslib.String(arn),
 	})
 	if err != nil {
@@ -256,7 +245,7 @@ func (c *SDKClient) elasticacheTags(ctx context.Context, arn string) (map[string
 	}
 	out := make(map[string]string, len(output.TagList))
 	for _, tag := range output.TagList {
-		out[awslib.StringValue(tag.Key)] = awslib.StringValue(tag.Value)
+		out[awslib.ToString(tag.Key)] = awslib.ToString(tag.Value)
 	}
 	return out, nil
 }
@@ -265,7 +254,7 @@ func (c *SDKClient) docdbTags(ctx context.Context, arn string) (map[string]strin
 	if arn == "" {
 		return map[string]string{}, nil
 	}
-	output, err := c.docdb.ListTagsForResourceWithContext(ctx, &docdb.ListTagsForResourceInput{
+	output, err := c.docdb.ListTagsForResource(ctx, &docdbsvc.ListTagsForResourceInput{
 		ResourceName: awslib.String(arn),
 	})
 	if err != nil {
@@ -273,7 +262,7 @@ func (c *SDKClient) docdbTags(ctx context.Context, arn string) (map[string]strin
 	}
 	out := make(map[string]string, len(output.TagList))
 	for _, tag := range output.TagList {
-		out[awslib.StringValue(tag.Key)] = awslib.StringValue(tag.Value)
+		out[awslib.ToString(tag.Key)] = awslib.ToString(tag.Value)
 	}
 	return out, nil
 }
@@ -288,26 +277,26 @@ func tagsOrEmptyUnlessContextDone(ctx context.Context, tags map[string]string, e
 	return map[string]string{}, nil
 }
 
-func awsRDSTagsToMap(tags []*rds.Tag) map[string]string {
+func awsRDSTagsToMap(tags []rdstypes.Tag) map[string]string {
 	out := make(map[string]string, len(tags))
 	for _, tag := range tags {
-		key := awslib.StringValue(tag.Key)
+		key := awslib.ToString(tag.Key)
 		if key == "" {
 			continue
 		}
-		out[key] = awslib.StringValue(tag.Value)
+		out[key] = awslib.ToString(tag.Value)
 	}
 	return out
 }
 
-func ec2TagsToMap(tags []*ec2.Tag) map[string]string {
+func ec2TagsToMap(tags []ec2types.Tag) map[string]string {
 	out := make(map[string]string, len(tags))
 	for _, tag := range tags {
-		key := awslib.StringValue(tag.Key)
+		key := awslib.ToString(tag.Key)
 		if key == "" {
 			continue
 		}
-		out[key] = awslib.StringValue(tag.Value)
+		out[key] = awslib.ToString(tag.Value)
 	}
 	return out
 }
