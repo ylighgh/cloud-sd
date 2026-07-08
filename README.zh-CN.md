@@ -307,6 +307,21 @@ docker run --rm -p 8080:8080 \
 
 生产环境建议挂载自己的配置文件，并通过密钥管理系统注入凭证。
 
+## Kubernetes
+
+Kubernetes 清单在 [deploy](deploy/) 目录：
+
+- [deploy/cloud-sd/cloud-sd.yaml](deploy/cloud-sd/cloud-sd.yaml) 用于部署 cloud-sd，包含 ConfigMap、Secret、Deployment 和 Service。
+- [deploy/exporters](deploy/exporters/) 用于部署 Redis、MySQL、PostgreSQL、MongoDB 和 Node exporters。
+
+```bash
+kubectl apply -f deploy/cloud-sd/cloud-sd.yaml
+```
+
+应用前需要替换 `CHANGE_ME`，检查 ConfigMap 里的账号和地域，并根据你的镜像仓库调整 `ghcr.io/ylighgh/cloud-sd:v0.1.0`。
+
+镜像由 [.github/workflows/docker.yml](.github/workflows/docker.yml) 发布。推送 `v*` tag，或手动运行 workflow 并设置 `image_tag=v0.1.0`，即可发布 `ghcr.io/ylighgh/cloud-sd:v0.1.0`。
+
 ## 开发
 
 ```bash

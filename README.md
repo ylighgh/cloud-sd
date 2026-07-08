@@ -307,6 +307,21 @@ docker run --rm -p 8080:8080 \
 
 For production, mount your own config file and inject credentials with your secret manager.
 
+## Kubernetes
+
+Kubernetes manifests are available in [deploy](deploy/):
+
+- [deploy/cloud-sd/cloud-sd.yaml](deploy/cloud-sd/cloud-sd.yaml) deploys cloud-sd with ConfigMap, Secret, Deployment, and Service.
+- [deploy/exporters](deploy/exporters/) deploys Redis, MySQL, PostgreSQL, MongoDB, and Node exporters.
+
+```bash
+kubectl apply -f deploy/cloud-sd/cloud-sd.yaml
+```
+
+Before applying, replace `CHANGE_ME` values, review accounts and regions in the ConfigMap, and update the image if you do not publish to `ghcr.io/ylighgh/cloud-sd:v0.1.0`.
+
+The image is published by the GitHub Actions workflow in [.github/workflows/docker.yml](.github/workflows/docker.yml). Push a `v*` tag, or run the workflow manually with `image_tag=v0.1.0`, to publish `ghcr.io/ylighgh/cloud-sd:v0.1.0`.
+
 ## Development
 
 ```bash

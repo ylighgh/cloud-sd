@@ -1,0 +1,189 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloud-sd
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: cloud-sd
+    app.kubernetes.io/component: service-discovery
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloud-sd-credentials
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: cloud-sd
+    app.kubernetes.io/component: service-discovery
+type: Opaque
+stringData:
+  # Alibaba Cloud account "prod"
+  ALIYUN_PROD_ACCESS_KEY_ID: CHANGE_ME
+  ALIYUN_PROD_ACCESS_KEY_SECRET: CHANGE_ME
+
+  # Alibaba Cloud account "game"
+  ALIYUN_GAME_ACCESS_KEY_ID: CHANGE_ME
+  ALIYUN_GAME_ACCESS_KEY_SECRET: CHANGE_ME
+
+  # AWS account "aws-prod"
+  AWS_ACCESS_KEY_ID: CHANGE_ME
+  AWS_SECRET_ACCESS_KEY: CHANGE_ME
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloud-sd-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: cloud-sd
+    app.kubernetes.io/component: service-discovery
+data:
+  cloud-sd.yaml: |
+    server:
+      listen: ":8080"
+
+    collector:
+      # Empty scopes means discover all non-disabled resources.
+      # Set specific values when you want tag-based filtering:
+      # scopes:
+      #   - test
+      #   - prev
+      scopes: []
+      engines:
+        redis: true
+        mysql: true
+        postgres: true
+        mongo: true
+        node: true
+      refresh_interval: 5m
+      refresh_timeout: 1m
+      request_timeout: 20s
+
+    routing:
+      scope_tag: cloud_sd_scope
+      disable_tag: cloud_sd_disable
+
+    aliyun:
+      enabled: true
+      accounts:
+        - name: prod
+          regions:
+            - cn-hangzhou
+            - ap-southeast-1
+          access_key_id_env: ALIYUN_PROD_ACCESS_KEY_ID
+          access_key_secret_env: ALIYUN_PROD_ACCESS_KEY_SECRET
+
+        - name: game
+          regions:
+            - cn-shanghai
+          access_key_id_env: ALIYUN_GAME_ACCESS_KEY_ID
+          access_key_secret_env: ALIYUN_GAME_ACCESS_KEY_SECRET
+
+    aws:
+      enabled: true
+      accounts:
+        - name: aws-prod
+          regions:
+            - ap-southeast-1
+          access_key_id_env: AWS_ACCESS_KEY_ID
+          secret_access_key_env: AWS_SECRET_ACCESS_KEY
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud-sd
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: cloud-sd
+    app.kubernetes.io/component: service-discovery
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloud-sd
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cloud-sd
+        app.kubernetes.io/component: service-discovery
+    spec:
+      serviceAccountName: cloud-sd
+      automountServiceAccountToken: false
+      containers:
+        - name: cloud-sd
+          image: ghcr.io/ylighgh/cloud-sd:v0.1.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config
+            - /etc/cloud-sd/cloud-sd.yaml
+          envFrom:
+            - secretRef:
+                name: cloud-sd-credentials
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: cloud-sd-config
+              mountPath: /etc/cloud-sd
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: cloud-sd-config
+          configMap:
+            name: cloud-sd-config
+            items:
+              - key: cloud-sd.yaml
+                path: cloud-sd.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud-sd
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: cloud-sd
+    app.kubernetes.io/component: service-discovery
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: cloud-sd
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
