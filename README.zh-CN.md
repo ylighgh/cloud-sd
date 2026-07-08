@@ -4,7 +4,7 @@
 [![Prometheus](https://img.shields.io/badge/Prometheus-HTTP%20SD-E6522C?logo=prometheus&logoColor=white)](docs/prometheus.zh-CN.md)
 [![Status](https://img.shields.io/badge/status-v0.1.0-blue)](#项目状态)
 
-prometheus-cloud-sd，也就是 cloud-sd，是一个面向 Prometheus HTTP Service Discovery 的多云资源发现服务。它从 Alibaba Cloud 和 AWS 发现云数据库、中间件和计算资源，转换为 Prometheus `http_sd_configs` 兼容的 target groups，让 Prometheus 可以配合 exporter 采集。
+prometheus-cloud-sd 是一个面向 Prometheus HTTP Service Discovery 的多云资源发现服务。它从 Alibaba Cloud 和 AWS 发现云数据库、中间件和计算资源，转换为 Prometheus `http_sd_configs` 兼容的 target groups，让 Prometheus 可以配合 exporter 采集。
 
 [English](README.md) | [Prometheus 集成](docs/prometheus.zh-CN.md) | [Kubernetes 清单](deploy/) | [示例配置](examples/config.yaml)
 
@@ -18,7 +18,7 @@ prometheus-cloud-sd，也就是 cloud-sd，是一个面向 Prometheus HTTP Servi
 - AWS：ElastiCache Redis/Valkey、RDS/Aurora MySQL、RDS/Aurora PostgreSQL、DocumentDB、EC2
 - Redis、MySQL、PostgreSQL、MongoDB 和 Node Exporter 的 Prometheus HTTP SD endpoints
 - 基于 `cloud_sd_scope` 和 `cloud_sd_disable` 的 tag/scope 过滤
-- cloud-sd 和 exporters 的 Kubernetes 清单
+- prometheus-cloud-sd 和 exporters 的 Kubernetes 清单
 - GHCR 镜像发布 workflow
 
 `v0.1.0` 仍然刻意保持运行时轻量：
@@ -44,17 +44,17 @@ ghcr.io/ylighgh/prometheus-cloud-sd:v0.1.0
 
 2. 更新凭证和配置。
 
-编辑 [deploy/cloud-sd/cloud-sd.yaml](deploy/cloud-sd/cloud-sd.yaml)：
+编辑 [deploy/prometheus-cloud-sd/prometheus-cloud-sd.yaml](deploy/prometheus-cloud-sd/prometheus-cloud-sd.yaml)：
 
 - 替换所有 `CHANGE_ME`
 - 检查启用的云厂商、账号、地域、scopes 和 engines
 - 如果镜像发布到其他仓库，需要改掉默认 image
 
-3. 部署 cloud-sd。
+3. 部署 prometheus-cloud-sd。
 
 ```bash
-kubectl apply -f deploy/cloud-sd/cloud-sd.yaml
-kubectl -n monitoring rollout status deploy/cloud-sd
+kubectl apply -f deploy/prometheus-cloud-sd/prometheus-cloud-sd.yaml
+kubectl -n monitoring rollout status deploy/prometheus-cloud-sd
 ```
 
 4. 按需部署 exporters。
@@ -65,7 +65,7 @@ kubectl apply -f deploy/exporters/
 
 详细文档：
 
-- [cloud-sd Kubernetes 部署](deploy/cloud-sd/)
+- [prometheus-cloud-sd Kubernetes 部署](deploy/prometheus-cloud-sd/)
 - [exporter Kubernetes 清单](deploy/exporters/)
 - [Prometheus scrape 配置](docs/prometheus/exporters/)
 
@@ -77,7 +77,7 @@ export ALIYUN_PROD_ACCESS_KEY_SECRET="your-access-key-secret"
 export AWS_ACCESS_KEY_ID="your-access-key-id"
 export AWS_SECRET_ACCESS_KEY="your-secret-access-key"
 
-go run ./cmd/cloud-sd -config examples/config.yaml
+go run ./cmd/prometheus-cloud-sd -config examples/config.yaml
 ```
 
 验证接口：
@@ -102,7 +102,7 @@ curl http://localhost:8080/sd/redis
 
 ## 架构
 
-![cloud-sd 架构图](docs/assets/architecture.zh-CN.png)
+![prometheus-cloud-sd 架构图](docs/assets/architecture.zh-CN.png)
 
 ```text
 Cloud APIs
@@ -134,7 +134,7 @@ Provider factory 根据 YAML 配置构建启用的 sources。后续 Huawei Cloud
 
 ## 配置
 
-cloud-sd 使用 YAML。可以从 [examples/config.yaml](examples/config.yaml) 或 [deploy/cloud-sd/cloud-sd.yaml](deploy/cloud-sd/cloud-sd.yaml) 里的 ConfigMap 开始。
+prometheus-cloud-sd 使用 YAML。可以从 [examples/config.yaml](examples/config.yaml) 或 [deploy/prometheus-cloud-sd/prometheus-cloud-sd.yaml](deploy/prometheus-cloud-sd/prometheus-cloud-sd.yaml) 里的 ConfigMap 开始。
 
 最小结构：
 
@@ -210,7 +210,7 @@ HTTP SD 返回示例：
 
 ## Prometheus
 
-Prometheus 通过 `http_sd_configs` 读取 cloud-sd，再用 relabel 把发现到的资源地址转成 exporter probe target。
+Prometheus 通过 `http_sd_configs` 读取 prometheus-cloud-sd，再用 relabel 把发现到的资源地址转成 exporter probe target。
 
 推荐使用云厂商无关的 job 名：
 
@@ -230,7 +230,7 @@ cloud-node
 
 ## Labels
 
-cloud-sd 输出面向看板友好的 labels：
+prometheus-cloud-sd 输出面向看板友好的 labels：
 
 ```text
 vendor, account, account_id, region, group, name, iid, cservice, resource_type, engine
@@ -258,7 +258,7 @@ make build
 make run
 ```
 
-构建产物会写入 `bin/cloud-sd`。
+构建产物会写入 `bin/prometheus-cloud-sd`。
 
 ## Roadmap
 
@@ -272,4 +272,4 @@ make run
 
 ## License
 
-cloud-sd 使用 [Apache License 2.0](LICENSE) 开源许可。
+prometheus-cloud-sd 使用 [Apache License 2.0](LICENSE) 开源许可。

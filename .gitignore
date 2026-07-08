@@ -1,7 +1,7 @@
 # Build outputs
 /bin/
 /dist/
-/cloud-sd
+/prometheus-cloud-sd
 
 # Go test and coverage artifacts
 *.test
@@ -12,9 +12,9 @@ coverage.*
 .env
 .env.*
 !.env.example
-cloud-sd.yaml
-cloud-sd.local.yaml
-!deploy/cloud-sd/cloud-sd.yaml
+prometheus-cloud-sd.yaml
+prometheus-cloud-sd.local.yaml
+!deploy/prometheus-cloud-sd/prometheus-cloud-sd.yaml
 examples/config-dev.yaml
 examples/config-*.local.yaml
 

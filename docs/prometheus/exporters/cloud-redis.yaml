@@ -1,14 +1,14 @@
-# Prometheus scrape_config for Redis/Tair and ElastiCache Redis/Valkey targets discovered by cloud-sd.
+# Prometheus scrape_config for Redis/Tair and ElastiCache Redis/Valkey targets discovered by prometheus-cloud-sd.
 #
 # Copy the job below into prometheus.yml under scrape_configs.
 # If your deployment uses Prometheus Operator / Helm additionalScrapeConfigs,
 # copy only the "- job_name: cloud-redis" item.
 #
 # Expected runtime flow:
-#   Prometheus -> cloud-sd /sd/redis -> redis_exporter /scrape?target=redis://<host:port> -> Redis
+#   Prometheus -> prometheus-cloud-sd /sd/redis -> redis_exporter /scrape?target=redis://<host:port> -> Redis
 #
 # Replace these placeholders for your environment:
-#   http://cloud-sd:8080/sd/redis
+#   http://prometheus-cloud-sd:8080/sd/redis
 #   redis-exporter.monitoring.svc:9121
 scrape_configs:
   - job_name: cloud-redis
@@ -16,10 +16,10 @@ scrape_configs:
     scrape_timeout: 10s
     metrics_path: /scrape
     http_sd_configs:
-      - url: http://cloud-sd:8080/sd/redis
+      - url: http://prometheus-cloud-sd:8080/sd/redis
         refresh_interval: 60s
     relabel_configs:
-      # cloud-sd returns host:port. redis_exporter multi-target mode expects
+      # prometheus-cloud-sd returns host:port. redis_exporter multi-target mode expects
       # the Redis URI in the "target" query parameter.
       - source_labels: [__address__]
         regex: (.+)

@@ -2,14 +2,14 @@
 
 [中文文档](prometheus.zh-CN.md)
 
-This document explains how to integrate cloud-sd with Prometheus HTTP service discovery and configure multi-instance scraping for Redis, MySQL, PostgreSQL, MongoDB, and Node Exporter targets.
+This document explains how to integrate prometheus-cloud-sd with Prometheus HTTP service discovery and configure multi-instance scraping for Redis, MySQL, PostgreSQL, MongoDB, and Node Exporter targets.
 
 ## Scraping Model
 
-cloud-sd discovers cloud resource addresses and exposes Prometheus HTTP SD target groups. Prometheus reads the `/sd/*` endpoints, then relabels discovered addresses into exporter query parameters.
+prometheus-cloud-sd discovers cloud resource addresses and exposes Prometheus HTTP SD target groups. Prometheus reads the `/sd/*` endpoints, then relabels discovered addresses into exporter query parameters.
 
 ```text
-cloud-sd /sd/{engine}
+prometheus-cloud-sd /sd/{engine}
         |
         v
 Prometheus http_sd_configs
@@ -38,21 +38,21 @@ This allows one job to hold targets from Alibaba Cloud and AWS.
 
 ## Prerequisites
 
-1. Start cloud-sd and check readiness:
+1. Start prometheus-cloud-sd and check readiness:
 
 ```bash
-curl http://cloud-sd:8080/healthz
-curl http://cloud-sd:8080/readyz
+curl http://prometheus-cloud-sd:8080/healthz
+curl http://prometheus-cloud-sd:8080/readyz
 ```
 
 2. Check each engine endpoint:
 
 ```bash
-curl http://cloud-sd:8080/sd/redis
-curl http://cloud-sd:8080/sd/mysql
-curl http://cloud-sd:8080/sd/postgres
-curl http://cloud-sd:8080/sd/mongo
-curl http://cloud-sd:8080/sd/node
+curl http://prometheus-cloud-sd:8080/sd/redis
+curl http://prometheus-cloud-sd:8080/sd/mysql
+curl http://prometheus-cloud-sd:8080/sd/postgres
+curl http://prometheus-cloud-sd:8080/sd/mongo
+curl http://prometheus-cloud-sd:8080/sd/node
 ```
 
 3. Make sure cloud resource tags are ready:
@@ -62,7 +62,7 @@ cloud_sd_scope=id1
 cloud_sd_disable=false
 ```
 
-If `collector.scopes` is empty, cloud-sd discovers all non-disabled resources. Set `cloud_sd_disable=true` to remove a resource from discovery.
+If `collector.scopes` is empty, prometheus-cloud-sd discovers all non-disabled resources. Set `cloud_sd_disable=true` to remove a resource from discovery.
 
 ## Common Relabel Pattern
 
@@ -100,7 +100,7 @@ Set `instance` to the real cloud resource address, not the exporter service addr
 
 Exporter installation manifests and Prometheus scrape configs are split into separate files:
 
-| Exporter | Install manifest | Prometheus scrape config | cloud-sd endpoint |
+| Exporter | Install manifest | Prometheus scrape config | prometheus-cloud-sd endpoint |
 |---|---|---|---|
 | Redis Exporter | [redis-exporter.yaml](../deploy/exporters/redis-exporter.yaml) | [cloud-redis.yaml](prometheus/exporters/cloud-redis.yaml) | `/sd/redis` |
 | MySQL Exporter | [mysql-exporter.yaml](../deploy/exporters/mysql-exporter.yaml) | [cloud-mysql.yaml](prometheus/exporters/cloud-mysql.yaml) | `/sd/mysql` |
@@ -128,13 +128,13 @@ Use [redis-exporter.yaml](../deploy/exporters/redis-exporter.yaml). It creates a
 redis-exporter.monitoring.svc:9121
 ```
 
-If Redis requires auth, inject credentials through exporter environment variables, config files, or Secrets. Do not put passwords in cloud-sd labels.
+If Redis requires auth, inject credentials through exporter environment variables, config files, or Secrets. Do not put passwords in prometheus-cloud-sd labels.
 
 ### Step 2: Configure Prometheus
 
 Use [exporters/cloud-redis.yaml](prometheus/exporters/cloud-redis.yaml).
 
-The config reads `http://cloud-sd:8080/sd/redis`, rewrites the discovered `host:port` to `target=redis://host:port`, keeps `instance=host:port`, and sends the scrape to `redis-exporter.monitoring.svc:9121`.
+The config reads `http://prometheus-cloud-sd:8080/sd/redis`, rewrites the discovered `host:port` to `target=redis://host:port`, keeps `instance=host:port`, and sends the scrape to `redis-exporter.monitoring.svc:9121`.
 
 Final request:
 
@@ -179,7 +179,7 @@ Prometheus should pass only the target address, not database credentials.
 
 Use [exporters/cloud-mysql.yaml](prometheus/exporters/cloud-mysql.yaml).
 
-The config reads `http://cloud-sd:8080/sd/mysql`, passes the discovered `host:port` as `target`, uses `auth_module=client.cloud`, keeps `instance=host:port`, and sends the scrape to `mysqld-exporter.monitoring.svc:9104`.
+The config reads `http://prometheus-cloud-sd:8080/sd/mysql`, passes the discovered `host:port` as `target`, uses `auth_module=client.cloud`, keeps `instance=host:port`, and sends the scrape to `mysqld-exporter.monitoring.svc:9104`.
 
 Final request:
 
@@ -222,7 +222,7 @@ cloud
 
 Use [exporters/cloud-postgres.yaml](prometheus/exporters/cloud-postgres.yaml).
 
-The config reads `http://cloud-sd:8080/sd/postgres`, passes the discovered `host:port` as `target`, uses `auth_module=cloud`, keeps `instance=host:port`, and sends the scrape to `postgres-exporter.monitoring.svc:9187`.
+The config reads `http://prometheus-cloud-sd:8080/sd/postgres`, passes the discovered `host:port` as `target`, uses `auth_module=cloud`, keeps `instance=host:port`, and sends the scrape to `postgres-exporter.monitoring.svc:9187`.
 
 Final request:
 
@@ -261,7 +261,7 @@ Different MongoDB exporters use different multi-target paths and parameters. The
 
 Use [exporters/cloud-mongo.yaml](prometheus/exporters/cloud-mongo.yaml).
 
-The config reads `http://cloud-sd:8080/sd/mongo`, rewrites the discovered `host:port` to `target=mongodb://host:port`, keeps `instance=host:port`, and sends the scrape to `mongodb-exporter.monitoring.svc:9216`.
+The config reads `http://prometheus-cloud-sd:8080/sd/mongo`, rewrites the discovered `host:port` to `target=mongodb://host:port`, keeps `instance=host:port`, and sends the scrape to `mongodb-exporter.monitoring.svc:9216`.
 
 Final request:
 
@@ -280,7 +280,7 @@ For AWS DocumentDB, configure CA, TLS, and compatibility options according to yo
 
 ## Node Exporter Multi-Instance Scraping
 
-`/sd/node` is different from database and middleware jobs. cloud-sd returns ECS/EC2 instance addresses with the Node Exporter default port `9100`, so Prometheus can scrape Node Exporter directly.
+`/sd/node` is different from database and middleware jobs. prometheus-cloud-sd returns ECS/EC2 instance addresses with the Node Exporter default port `9100`, so Prometheus can scrape Node Exporter directly.
 
 ### Step 1: Run node_exporter on cloud hosts
 
@@ -310,7 +310,7 @@ node_uname_info{job="cloud-node"}
 node_cpu_seconds_total{job="cloud-node"}
 ```
 
-cloud-sd does not filter ECS/EC2 by running state. Stopped instances remain in `/sd/node` and appear as `up=0`.
+prometheus-cloud-sd does not filter ECS/EC2 by running state. Stopped instances remain in `/sd/node` and appear as `up=0`.
 
 ## Combining the Files
 
@@ -326,7 +326,7 @@ Exporter install manifests live in [deploy/exporters](../deploy/exporters/).
 
 ## Labels
 
-cloud-sd returns labels such as:
+prometheus-cloud-sd returns labels such as:
 
 ```json
 {
@@ -365,10 +365,10 @@ Mapping details:
 | `name` | Cloud resource display name |
 | `iid` | Cloud resource instance ID |
 | `cservice` | Service category, same value as `engine` in the MVP |
-| `resource_type` | cloud-sd resource type |
+| `resource_type` | prometheus-cloud-sd resource type |
 | `engine` | `redis`, `mysql`, `postgres`, `mongo`, or `node` |
 
-cloud-sd does not emit the old labels `provider`, `account_name`, `region_id`, `resource_id`, `resource_name`, or `scope`.
+prometheus-cloud-sd does not emit the old labels `provider`, `account_name`, `region_id`, `resource_id`, `resource_name`, or `scope`.
 
 ## Verification and Troubleshooting
 
@@ -399,12 +399,12 @@ count by (job, vendor, account, region, group, engine) (up{job=~"cloud-.*"})
 
 | Symptom | Common cause | Action |
 |---|---|---|
-| `/sd/*` returns 503 | cloud-sd is not ready or first refresh failed | Check `/readyz` and cloud-sd logs |
-| No Prometheus targets | `http_sd_configs.url` is unreachable | curl cloud-sd from the Prometheus runtime |
+| `/sd/*` returns 503 | prometheus-cloud-sd is not ready or first refresh failed | Check `/readyz` and prometheus-cloud-sd logs |
+| No Prometheus targets | `http_sd_configs.url` is unreachable | curl prometheus-cloud-sd from the Prometheus runtime |
 | Target exists but `up=0` | exporter cannot probe the cloud resource | Check exporter logs, network ACLs, security groups, and database allowlists |
 | `instance` is the exporter address | missing `__param_target -> instance` relabel step | add the relabel rule |
 | scope filtering does not work | cloud tags are missing or tag API permissions are insufficient | check `cloud_sd_scope` and tag read permissions |
-| disabled resource is still discovered | `cloud_sd_disable=true` is missing or tag reads failed | check resource tags and cloud-sd refresh logs |
+| disabled resource is still discovered | `cloud_sd_disable=true` is missing or tag reads failed | check resource tags and prometheus-cloud-sd refresh logs |
 
 ### 5. Metric name reminder
 

@@ -4,7 +4,7 @@
 [![Prometheus](https://img.shields.io/badge/Prometheus-HTTP%20SD-E6522C?logo=prometheus&logoColor=white)](docs/prometheus.md)
 [![Status](https://img.shields.io/badge/status-v0.1.0-blue)](#status)
 
-prometheus-cloud-sd, also known as cloud-sd, is a multi-cloud resource discovery service for Prometheus HTTP Service Discovery. It discovers cloud databases, middleware, and compute resources from Alibaba Cloud and AWS, converts them into Prometheus `http_sd_configs` target groups, and lets Prometheus scrape them through exporters.
+prometheus-cloud-sd is a multi-cloud resource discovery service for Prometheus HTTP Service Discovery. It discovers cloud databases, middleware, and compute resources from Alibaba Cloud and AWS, converts them into Prometheus `http_sd_configs` target groups, and lets Prometheus scrape them through exporters.
 
 [中文文档](README.zh-CN.md) | [Prometheus integration](docs/prometheus.md) | [Kubernetes manifests](deploy/) | [Example config](examples/config.yaml)
 
@@ -18,7 +18,7 @@ Included:
 - AWS: ElastiCache Redis/Valkey, RDS/Aurora MySQL, RDS/Aurora PostgreSQL, DocumentDB, EC2
 - Prometheus HTTP SD endpoints for Redis, MySQL, PostgreSQL, MongoDB, and Node Exporter targets
 - tag/scope filtering with `cloud_sd_scope` and `cloud_sd_disable`
-- Kubernetes manifests for cloud-sd and exporters
+- Kubernetes manifests for prometheus-cloud-sd and exporters
 - GHCR image publishing workflow
 
 Still intentionally out of scope for v0.1.0:
@@ -44,17 +44,17 @@ The image is built by [.github/workflows/docker.yml](.github/workflows/docker.ym
 
 2. Update credentials and config.
 
-Edit [deploy/cloud-sd/cloud-sd.yaml](deploy/cloud-sd/cloud-sd.yaml):
+Edit [deploy/prometheus-cloud-sd/prometheus-cloud-sd.yaml](deploy/prometheus-cloud-sd/prometheus-cloud-sd.yaml):
 
 - replace every `CHANGE_ME`
 - review enabled providers, accounts, regions, scopes, and engines
 - update the image if you publish it somewhere else
 
-3. Deploy cloud-sd.
+3. Deploy prometheus-cloud-sd.
 
 ```bash
-kubectl apply -f deploy/cloud-sd/cloud-sd.yaml
-kubectl -n monitoring rollout status deploy/cloud-sd
+kubectl apply -f deploy/prometheus-cloud-sd/prometheus-cloud-sd.yaml
+kubectl -n monitoring rollout status deploy/prometheus-cloud-sd
 ```
 
 4. Deploy exporters if needed.
@@ -65,7 +65,7 @@ kubectl apply -f deploy/exporters/
 
 Detailed deployment docs:
 
-- [cloud-sd Kubernetes deployment](deploy/cloud-sd/)
+- [prometheus-cloud-sd Kubernetes deployment](deploy/prometheus-cloud-sd/)
 - [exporter Kubernetes manifests](deploy/exporters/)
 - [Prometheus scrape configs](docs/prometheus/exporters/)
 
@@ -77,7 +77,7 @@ export ALIYUN_PROD_ACCESS_KEY_SECRET="your-access-key-secret"
 export AWS_ACCESS_KEY_ID="your-access-key-id"
 export AWS_SECRET_ACCESS_KEY="your-secret-access-key"
 
-go run ./cmd/cloud-sd -config examples/config.yaml
+go run ./cmd/prometheus-cloud-sd -config examples/config.yaml
 ```
 
 Check the service:
@@ -102,7 +102,7 @@ curl http://localhost:8080/sd/redis
 
 ## Architecture
 
-![cloud-sd architecture](docs/assets/architecture.png)
+![prometheus-cloud-sd architecture](docs/assets/architecture.png)
 
 ```text
 Cloud APIs
@@ -134,7 +134,7 @@ Provider factories build enabled sources from YAML config. Future Huawei Cloud, 
 
 ## Configuration
 
-cloud-sd uses YAML. Start from [examples/config.yaml](examples/config.yaml) or the ConfigMap in [deploy/cloud-sd/cloud-sd.yaml](deploy/cloud-sd/cloud-sd.yaml).
+prometheus-cloud-sd uses YAML. Start from [examples/config.yaml](examples/config.yaml) or the ConfigMap in [deploy/prometheus-cloud-sd/prometheus-cloud-sd.yaml](deploy/prometheus-cloud-sd/prometheus-cloud-sd.yaml).
 
 Minimal shape:
 
@@ -210,7 +210,7 @@ Example target group:
 
 ## Prometheus
 
-Prometheus reads cloud-sd through `http_sd_configs`, then relabels discovered resource addresses into exporter probe targets.
+Prometheus reads prometheus-cloud-sd through `http_sd_configs`, then relabels discovered resource addresses into exporter probe targets.
 
 Use cloud-neutral job names:
 
@@ -230,7 +230,7 @@ Detailed examples:
 
 ## Labels
 
-cloud-sd emits dashboard-friendly labels:
+prometheus-cloud-sd emits dashboard-friendly labels:
 
 ```text
 vendor, account, account_id, region, group, name, iid, cservice, resource_type, engine
@@ -258,7 +258,7 @@ make build
 make run
 ```
 
-The binary is written to `bin/cloud-sd`.
+The binary is written to `bin/prometheus-cloud-sd`.
 
 ## Roadmap
 
@@ -272,4 +272,4 @@ The binary is written to `bin/cloud-sd`.
 
 ## License
 
-cloud-sd is licensed under the [Apache License 2.0](LICENSE).
+prometheus-cloud-sd is licensed under the [Apache License 2.0](LICENSE).

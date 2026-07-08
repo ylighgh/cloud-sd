@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "examples/config.yaml", "path to cloud-sd YAML config")
+	configPath := flag.String("config", "examples/config.yaml", "path to prometheus-cloud-sd YAML config")
 	flag.Parse()
 
 	cfg, err := config.Load(*configPath)
@@ -63,7 +63,7 @@ func main() {
 		}
 	}()
 
-	log.Printf("cloud-sd listening on %s", cfg.Server.Listen)
+	log.Printf("prometheus-cloud-sd listening on %s", cfg.Server.Listen)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("serve: %v", err)
 	}

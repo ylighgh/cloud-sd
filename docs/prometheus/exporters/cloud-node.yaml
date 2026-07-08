@@ -1,13 +1,13 @@
-# Prometheus scrape_config for ECS/EC2 node_exporter targets discovered by cloud-sd.
+# Prometheus scrape_config for ECS/EC2 node_exporter targets discovered by prometheus-cloud-sd.
 #
 # Copy the job below into prometheus.yml under scrape_configs.
 # If your deployment uses Prometheus Operator / Helm additionalScrapeConfigs,
 # copy only the "- job_name: cloud-node" item.
 #
 # Expected runtime flow:
-#   Prometheus -> cloud-sd /sd/node -> node_exporter /metrics on each ECS/EC2 host
+#   Prometheus -> prometheus-cloud-sd /sd/node -> node_exporter /metrics on each ECS/EC2 host
 #
-# cloud-sd returns node targets as host:9100. No exporter service rewrite is
+# prometheus-cloud-sd returns node targets as host:9100. No exporter service rewrite is
 # needed because Prometheus scrapes node_exporter directly.
 scrape_configs:
   - job_name: cloud-node
@@ -15,7 +15,7 @@ scrape_configs:
     scrape_timeout: 10s
     metrics_path: /metrics
     http_sd_configs:
-      - url: http://cloud-sd:8080/sd/node
+      - url: http://prometheus-cloud-sd:8080/sd/node
         refresh_interval: 60s
     relabel_configs:
       # Make the explicit instance label match the discovered node_exporter

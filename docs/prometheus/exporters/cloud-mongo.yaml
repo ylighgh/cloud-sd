@@ -1,14 +1,14 @@
-# Prometheus scrape_config for MongoDB and AWS DocumentDB targets discovered by cloud-sd.
+# Prometheus scrape_config for MongoDB and AWS DocumentDB targets discovered by prometheus-cloud-sd.
 #
 # Copy the job below into prometheus.yml under scrape_configs.
 # If your deployment uses Prometheus Operator / Helm additionalScrapeConfigs,
 # copy only the "- job_name: cloud-mongo" item.
 #
 # Expected runtime flow:
-#   Prometheus -> cloud-sd /sd/mongo -> mongodb_exporter /scrape?target=mongodb://<host:port> -> MongoDB
+#   Prometheus -> prometheus-cloud-sd /sd/mongo -> mongodb_exporter /scrape?target=mongodb://<host:port> -> MongoDB
 #
 # Replace these placeholders for your environment:
-#   http://cloud-sd:8080/sd/mongo
+#   http://prometheus-cloud-sd:8080/sd/mongo
 #   mongodb-exporter.monitoring.svc:9216
 #
 # Different MongoDB exporters use different multi-target paths and URI
@@ -19,10 +19,10 @@ scrape_configs:
     scrape_timeout: 10s
     metrics_path: /scrape
     http_sd_configs:
-      - url: http://cloud-sd:8080/sd/mongo
+      - url: http://prometheus-cloud-sd:8080/sd/mongo
         refresh_interval: 60s
     relabel_configs:
-      # cloud-sd returns host:port. mongodb_exporter multi-target mode usually
+      # prometheus-cloud-sd returns host:port. mongodb_exporter multi-target mode usually
       # expects a MongoDB URI in the "target" query parameter.
       - source_labels: [__address__]
         regex: (.+)

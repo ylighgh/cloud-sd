@@ -1,14 +1,14 @@
-# Prometheus scrape_config for RDS MySQL and Aurora MySQL targets discovered by cloud-sd.
+# Prometheus scrape_config for RDS MySQL and Aurora MySQL targets discovered by prometheus-cloud-sd.
 #
 # Copy the job below into prometheus.yml under scrape_configs.
 # If your deployment uses Prometheus Operator / Helm additionalScrapeConfigs,
 # copy only the "- job_name: cloud-mysql" item.
 #
 # Expected runtime flow:
-#   Prometheus -> cloud-sd /sd/mysql -> mysqld_exporter /probe?target=<host:port>&auth_module=client.cloud -> MySQL
+#   Prometheus -> prometheus-cloud-sd /sd/mysql -> mysqld_exporter /probe?target=<host:port>&auth_module=client.cloud -> MySQL
 #
 # Replace these placeholders for your environment:
-#   http://cloud-sd:8080/sd/mysql
+#   http://prometheus-cloud-sd:8080/sd/mysql
 #   mysqld-exporter.monitoring.svc:9104
 #   client.cloud
 scrape_configs:
@@ -19,13 +19,13 @@ scrape_configs:
     params:
       # The auth module must exist in the mysqld_exporter config.
       # Store database credentials in the exporter config or Secret, not in
-      # cloud-sd labels or Prometheus relabel rules.
+      # prometheus-cloud-sd labels or Prometheus relabel rules.
       auth_module: [client.cloud]
     http_sd_configs:
-      - url: http://cloud-sd:8080/sd/mysql
+      - url: http://prometheus-cloud-sd:8080/sd/mysql
         refresh_interval: 60s
     relabel_configs:
-      # cloud-sd returns host:port. mysqld_exporter multi-target mode expects
+      # prometheus-cloud-sd returns host:port. mysqld_exporter multi-target mode expects
       # the target address in the "target" query parameter.
       - source_labels: [__address__]
         target_label: __param_target

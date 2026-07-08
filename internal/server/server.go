@@ -31,7 +31,7 @@ func NewRouter(opts Options) http.Handler {
 		c.JSON(http.StatusServiceUnavailable, opts.Store.Status())
 	})
 	router.GET("/metrics", func(c *gin.Context) {
-		c.Data(http.StatusOK, "text/plain; version=0.0.4; charset=utf-8", []byte("# cloud-sd metrics are reserved for a future release\n"))
+		c.Data(http.StatusOK, "text/plain; version=0.0.4; charset=utf-8", []byte("# prometheus-cloud-sd metrics are reserved for a future release\n"))
 	})
 	registerSDRoute(router, "/sd/redis", core.EngineRedis, opts)
 	registerSDRoute(router, "/sd/postgres", core.EnginePostgres, opts)

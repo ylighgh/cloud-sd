@@ -6,20 +6,20 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: cloud-sd
+  name: prometheus-cloud-sd
   namespace: monitoring
   labels:
-    app.kubernetes.io/name: cloud-sd
+    app.kubernetes.io/name: prometheus-cloud-sd
     app.kubernetes.io/component: service-discovery
 automountServiceAccountToken: false
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: cloud-sd-credentials
+  name: prometheus-cloud-sd-credentials
   namespace: monitoring
   labels:
-    app.kubernetes.io/name: cloud-sd
+    app.kubernetes.io/name: prometheus-cloud-sd
     app.kubernetes.io/component: service-discovery
 type: Opaque
 stringData:
@@ -38,13 +38,13 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: cloud-sd-config
+  name: prometheus-cloud-sd-config
   namespace: monitoring
   labels:
-    app.kubernetes.io/name: cloud-sd
+    app.kubernetes.io/name: prometheus-cloud-sd
     app.kubernetes.io/component: service-discovery
 data:
-  cloud-sd.yaml: |
+  prometheus-cloud-sd.yaml: |
     server:
       listen: ":8080"
 
@@ -97,41 +97,41 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cloud-sd
+  name: prometheus-cloud-sd
   namespace: monitoring
   labels:
-    app.kubernetes.io/name: cloud-sd
+    app.kubernetes.io/name: prometheus-cloud-sd
     app.kubernetes.io/component: service-discovery
 spec:
   replicas: 1
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app.kubernetes.io/name: cloud-sd
+      app.kubernetes.io/name: prometheus-cloud-sd
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: cloud-sd
+        app.kubernetes.io/name: prometheus-cloud-sd
         app.kubernetes.io/component: service-discovery
     spec:
-      serviceAccountName: cloud-sd
+      serviceAccountName: prometheus-cloud-sd
       automountServiceAccountToken: false
       containers:
-        - name: cloud-sd
+        - name: prometheus-cloud-sd
           image: ghcr.io/ylighgh/prometheus-cloud-sd:v0.1.0
           imagePullPolicy: IfNotPresent
           args:
             - -config
-            - /etc/cloud-sd/cloud-sd.yaml
+            - /etc/prometheus-cloud-sd/prometheus-cloud-sd.yaml
           envFrom:
             - secretRef:
-                name: cloud-sd-credentials
+                name: prometheus-cloud-sd-credentials
           ports:
             - name: http
               containerPort: 8080
           volumeMounts:
-            - name: cloud-sd-config
-              mountPath: /etc/cloud-sd
+            - name: prometheus-cloud-sd-config
+              mountPath: /etc/prometheus-cloud-sd
               readOnly: true
           readinessProbe:
             httpGet:
@@ -164,25 +164,25 @@ spec:
               drop:
                 - ALL
       volumes:
-        - name: cloud-sd-config
+        - name: prometheus-cloud-sd-config
           configMap:
-            name: cloud-sd-config
+            name: prometheus-cloud-sd-config
             items:
-              - key: cloud-sd.yaml
-                path: cloud-sd.yaml
+              - key: prometheus-cloud-sd.yaml
+                path: prometheus-cloud-sd.yaml
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: cloud-sd
+  name: prometheus-cloud-sd
   namespace: monitoring
   labels:
-    app.kubernetes.io/name: cloud-sd
+    app.kubernetes.io/name: prometheus-cloud-sd
     app.kubernetes.io/component: service-discovery
 spec:
   type: ClusterIP
   selector:
-    app.kubernetes.io/name: cloud-sd
+    app.kubernetes.io/name: prometheus-cloud-sd
   ports:
     - name: http
       port: 8080

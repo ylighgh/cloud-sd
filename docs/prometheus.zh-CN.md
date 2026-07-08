@@ -2,14 +2,14 @@
 
 [English](prometheus.md)
 
-本文说明如何把 cloud-sd 接入 Prometheus HTTP service discovery，并分别配置 Redis、MySQL、PostgreSQL、MongoDB 和 Node Exporter 的多实例采集链路。
+本文说明如何把 prometheus-cloud-sd 接入 Prometheus HTTP service discovery，并分别配置 Redis、MySQL、PostgreSQL、MongoDB 和 Node Exporter 的多实例采集链路。
 
 ## 整体采集模型
 
-cloud-sd 只负责发现云资源地址，并输出 Prometheus HTTP SD target groups。Prometheus 负责拉取 cloud-sd 的 `/sd/*` 接口，再通过 relabel 把发现到的地址传给 exporter。
+prometheus-cloud-sd 只负责发现云资源地址，并输出 Prometheus HTTP SD target groups。Prometheus 负责拉取 prometheus-cloud-sd 的 `/sd/*` 接口，再通过 relabel 把发现到的地址传给 exporter。
 
 ```text
-cloud-sd /sd/{engine}
+prometheus-cloud-sd /sd/{engine}
         |
         v
 Prometheus http_sd_configs
@@ -38,21 +38,21 @@ cloud-node
 
 ## 前置准备
 
-1. 启动 cloud-sd，并确认 `/readyz` 已经 ready：
+1. 启动 prometheus-cloud-sd，并确认 `/readyz` 已经 ready：
 
 ```bash
-curl http://cloud-sd:8080/healthz
-curl http://cloud-sd:8080/readyz
+curl http://prometheus-cloud-sd:8080/healthz
+curl http://prometheus-cloud-sd:8080/readyz
 ```
 
 2. 确认各 engine endpoint 可以返回 target groups：
 
 ```bash
-curl http://cloud-sd:8080/sd/redis
-curl http://cloud-sd:8080/sd/mysql
-curl http://cloud-sd:8080/sd/postgres
-curl http://cloud-sd:8080/sd/mongo
-curl http://cloud-sd:8080/sd/node
+curl http://prometheus-cloud-sd:8080/sd/redis
+curl http://prometheus-cloud-sd:8080/sd/mysql
+curl http://prometheus-cloud-sd:8080/sd/postgres
+curl http://prometheus-cloud-sd:8080/sd/mongo
+curl http://prometheus-cloud-sd:8080/sd/node
 ```
 
 3. 确认云资源 tag 已配置好：
@@ -100,7 +100,7 @@ relabel_configs:
 
 每个 exporter 的安装清单和 Prometheus scrape config 已拆成独立 YAML 文件：
 
-| Exporter | 安装清单 | Prometheus scrape config | cloud-sd endpoint |
+| Exporter | 安装清单 | Prometheus scrape config | prometheus-cloud-sd endpoint |
 |---|---|---|---|
 | Redis Exporter | [redis-exporter.yaml](../deploy/exporters/redis-exporter.yaml) | [cloud-redis.yaml](prometheus/exporters/cloud-redis.yaml) | `/sd/redis` |
 | MySQL Exporter | [mysql-exporter.yaml](../deploy/exporters/mysql-exporter.yaml) | [cloud-mysql.yaml](prometheus/exporters/cloud-mysql.yaml) | `/sd/mysql` |
@@ -116,7 +116,7 @@ relabel_configs:
 
 适用场景：
 
-- cloud-sd 的 `/sd/redis` 返回 Redis/Tair 或 ElastiCache 地址
+- prometheus-cloud-sd 的 `/sd/redis` 返回 Redis/Tair 或 ElastiCache 地址
 - 一个 redis_exporter 通过 `target` 参数探测多个 Redis 实例
 - Redis 实例使用相同认证方式，或 exporter 自己能处理认证配置
 
@@ -128,13 +128,13 @@ relabel_configs:
 redis-exporter.monitoring.svc:9121
 ```
 
-如果 Redis 需要密码，建议通过 exporter 的环境变量、配置文件或 Secret 注入，不要把密码放到 cloud-sd label 里。
+如果 Redis 需要密码，建议通过 exporter 的环境变量、配置文件或 Secret 注入，不要把密码放到 prometheus-cloud-sd label 里。
 
 ### 步骤 2：配置 Prometheus job
 
 使用 [exporters/cloud-redis.yaml](prometheus/exporters/cloud-redis.yaml)。
 
-这个配置会读取 `http://cloud-sd:8080/sd/redis`，把发现到的 `host:port` 改写成 `target=redis://host:port`，保留 `instance=host:port`，并把 scrape 请求发送到 `redis-exporter.monitoring.svc:9121`。
+这个配置会读取 `http://prometheus-cloud-sd:8080/sd/redis`，把发现到的 `host:port` 改写成 `target=redis://host:port`，保留 `instance=host:port`，并把 scrape 请求发送到 `redis-exporter.monitoring.svc:9121`。
 
 最终请求形式类似：
 
@@ -155,7 +155,7 @@ redis_up{job="cloud-redis"}
 
 适用场景：
 
-- cloud-sd 的 `/sd/mysql` 返回 RDS MySQL 或 Aurora MySQL 地址
+- prometheus-cloud-sd 的 `/sd/mysql` 返回 RDS MySQL 或 Aurora MySQL 地址
 - mysqld_exporter 使用 `/probe` multi-target 模式
 - MySQL 凭证由 exporter 的配置文件或 Secret 管理
 
@@ -179,7 +179,7 @@ client.cloud
 
 使用 [exporters/cloud-mysql.yaml](prometheus/exporters/cloud-mysql.yaml)。
 
-这个配置会读取 `http://cloud-sd:8080/sd/mysql`，把发现到的 `host:port` 作为 `target` 传给 exporter，使用 `auth_module=client.cloud`，保留 `instance=host:port`，并把 scrape 请求发送到 `mysqld-exporter.monitoring.svc:9104`。
+这个配置会读取 `http://prometheus-cloud-sd:8080/sd/mysql`，把发现到的 `host:port` 作为 `target` 传给 exporter，使用 `auth_module=client.cloud`，保留 `instance=host:port`，并把 scrape 请求发送到 `mysqld-exporter.monitoring.svc:9104`。
 
 最终请求形式类似：
 
@@ -200,7 +200,7 @@ mysql_up{job="cloud-mysql"}
 
 适用场景：
 
-- cloud-sd 的 `/sd/postgres` 返回 RDS PostgreSQL 或 Aurora PostgreSQL 地址
+- prometheus-cloud-sd 的 `/sd/postgres` 返回 RDS PostgreSQL 或 Aurora PostgreSQL 地址
 - postgres_exporter 使用 `/probe` multi-target 模式
 - PostgreSQL 凭证由 exporter 的 auth module 或 Secret 管理
 
@@ -222,7 +222,7 @@ cloud
 
 使用 [exporters/cloud-postgres.yaml](prometheus/exporters/cloud-postgres.yaml)。
 
-这个配置会读取 `http://cloud-sd:8080/sd/postgres`，把发现到的 `host:port` 作为 `target` 传给 exporter，使用 `auth_module=cloud`，保留 `instance=host:port`，并把 scrape 请求发送到 `postgres-exporter.monitoring.svc:9187`。
+这个配置会读取 `http://prometheus-cloud-sd:8080/sd/postgres`，把发现到的 `host:port` 作为 `target` 传给 exporter，使用 `auth_module=cloud`，保留 `instance=host:port`，并把 scrape 请求发送到 `postgres-exporter.monitoring.svc:9187`。
 
 最终请求形式类似：
 
@@ -243,7 +243,7 @@ pg_up{job="cloud-postgres"}
 
 适用场景：
 
-- cloud-sd 的 `/sd/mongo` 返回 MongoDB 或 DocumentDB 地址
+- prometheus-cloud-sd 的 `/sd/mongo` 返回 MongoDB 或 DocumentDB 地址
 - mongodb_exporter 支持通过 query 参数接收目标地址
 - MongoDB 认证由 exporter 配置或 Secret 管理
 
@@ -261,7 +261,7 @@ mongodb-exporter.monitoring.svc:9216
 
 使用 [exporters/cloud-mongo.yaml](prometheus/exporters/cloud-mongo.yaml)。
 
-这个配置会读取 `http://cloud-sd:8080/sd/mongo`，把发现到的 `host:port` 改写成 `target=mongodb://host:port`，保留 `instance=host:port`，并把 scrape 请求发送到 `mongodb-exporter.monitoring.svc:9216`。
+这个配置会读取 `http://prometheus-cloud-sd:8080/sd/mongo`，把发现到的 `host:port` 改写成 `target=mongodb://host:port`，保留 `instance=host:port`，并把 scrape 请求发送到 `mongodb-exporter.monitoring.svc:9216`。
 
 最终请求形式类似：
 
@@ -280,7 +280,7 @@ mongodb_up{job="cloud-mongo"}
 
 ## Node Exporter 多实例采集
 
-`/sd/node` 和数据库、中间件 exporter 不一样。cloud-sd 返回的是 ECS/EC2 实例地址加 Node Exporter 默认端口 `9100`，Prometheus 可以直接抓取这些主机上的 Node Exporter。
+`/sd/node` 和数据库、中间件 exporter 不一样。prometheus-cloud-sd 返回的是 ECS/EC2 实例地址加 Node Exporter 默认端口 `9100`，Prometheus 可以直接抓取这些主机上的 Node Exporter。
 
 ### 步骤 1：在云主机上运行 node_exporter
 
@@ -302,7 +302,7 @@ mongodb_up{job="cloud-mongo"}
 
 不需要把 `__address__` 改写到 exporter 服务，因为目标主机本身就是 node_exporter endpoint。
 
-如果你希望 `instance` 只保留 IP 或保留 cloud-sd 输出的资源名，可以额外加 relabel；默认情况下 Prometheus 会把 `instance` 设为 `host:port`。
+如果你希望 `instance` 只保留 IP 或保留 prometheus-cloud-sd 输出的资源名，可以额外加 relabel；默认情况下 Prometheus 会把 `instance` 设为 `host:port`。
 
 ### 步骤 3：验证
 
@@ -312,7 +312,7 @@ node_uname_info{job="cloud-node"}
 node_cpu_seconds_total{job="cloud-node"}
 ```
 
-cloud-sd 不过滤 ECS/EC2 的运行状态。停止或误关机实例仍会出现在 `/sd/node` 中，并在 Prometheus 中表现为 `up=0`。
+prometheus-cloud-sd 不过滤 ECS/EC2 的运行状态。停止或误关机实例仍会出现在 `/sd/node` 中，并在 Prometheus 中表现为 `up=0`。
 
 ## 合并配置文件
 
@@ -328,7 +328,7 @@ Exporter 安装清单在 [deploy/exporters](../deploy/exporters/)。
 
 ## Labels
 
-cloud-sd 会返回类似下面的 labels：
+prometheus-cloud-sd 会返回类似下面的 labels：
 
 ```json
 {
@@ -367,10 +367,10 @@ vendor -> account -> group -> name -> instance
 | `name` | 云资源展示名 |
 | `iid` | 云资源实例 ID |
 | `cservice` | 服务类别，MVP 中和 `engine` 保持一致 |
-| `resource_type` | cloud-sd 资源类型 |
+| `resource_type` | prometheus-cloud-sd 资源类型 |
 | `engine` | `redis`、`mysql`、`postgres`、`mongo` 或 `node` |
 
-cloud-sd 不再输出旧 labels：`provider`、`account_name`、`region_id`、`resource_id`、`resource_name`、`scope`。
+prometheus-cloud-sd 不再输出旧 labels：`provider`、`account_name`、`region_id`、`resource_id`、`resource_name`、`scope`。
 
 ## 验证和排障
 
@@ -401,9 +401,9 @@ count by (job, vendor, account, region, group, engine) (up{job=~"cloud-.*"})
 
 | 现象 | 常见原因 | 处理方式 |
 |---|---|---|
-| `/sd/*` 返回 503 | cloud-sd 还没 ready 或首次刷新失败 | 查看 `/readyz` 和 cloud-sd 日志 |
-| Prometheus 没有 target | `http_sd_configs.url` 不可达 | 从 Prometheus 容器里 curl cloud-sd |
+| `/sd/*` 返回 503 | prometheus-cloud-sd 还没 ready 或首次刷新失败 | 查看 `/readyz` 和 prometheus-cloud-sd 日志 |
+| Prometheus 没有 target | `http_sd_configs.url` 不可达 | 从 Prometheus 容器里 curl prometheus-cloud-sd |
 | target 存在但 `up=0` | exporter 无法探测目标资源 | 查看 exporter 日志、网络 ACL、安全组、数据库白名单 |
 | `instance` 变成 exporter 地址 | 缺少 `__param_target -> instance` relabel | 补充 relabel 规则 |
 | scope 过滤不生效 | 云资源 tag 缺失或 tag API 权限不足 | 检查 `cloud_sd_scope` 和 tag 读取权限 |
-| 禁用资源仍出现 | `cloud_sd_disable=true` 未配置或 tag 读取失败 | 检查资源 tag 和 cloud-sd refresh 日志 |
+| 禁用资源仍出现 | `cloud_sd_disable=true` 未配置或 tag 读取失败 | 检查资源 tag 和 prometheus-cloud-sd refresh 日志 |

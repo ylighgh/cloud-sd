@@ -1,10 +1,10 @@
 # Exporter Prometheus YAML Snippets
 
-These files provide ready-to-copy Prometheus `scrape_configs` for cloud-sd HTTP SD endpoints.
+These files provide ready-to-copy Prometheus `scrape_configs` for prometheus-cloud-sd HTTP SD endpoints.
 
 Kubernetes install manifests for the exporters live in [`deploy/exporters`](../../../deploy/exporters/).
 
-| Exporter | Scrape config | Install manifest | cloud-sd endpoint | Job name |
+| Exporter | Scrape config | Install manifest | prometheus-cloud-sd endpoint | Job name |
 |---|---|---|---|---|
 | Redis Exporter | [cloud-redis.yaml](cloud-redis.yaml) | [redis-exporter.yaml](../../../deploy/exporters/redis-exporter.yaml) | `/sd/redis` | `cloud-redis` |
 | MySQL Exporter | [cloud-mysql.yaml](cloud-mysql.yaml) | [mysql-exporter.yaml](../../../deploy/exporters/mysql-exporter.yaml) | `/sd/mysql` | `cloud-mysql` |
